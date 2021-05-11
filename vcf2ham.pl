@@ -6,8 +6,10 @@
 #   Hamming Distance matrix from Samples vcf codes
 #   usage: 
 #   vcf2mst.pl samples_vcfcodes.csv > hamming_distance_matrix.tsv
+#
+#   print a matrix compatible with grapetree input
 #-------------------------------------
-
+my ($f)=@ARGV;
 
 my $c={};
 my $codes={};
@@ -16,20 +18,20 @@ my @a;
 open(F, $f);
 while(<F>){
     chomp;
-    $_=~ s/"//g;
-    my ($SAMPLECODE,$VCFCODE) =   split(/,/,$_);
     if( $_=~ /SAMPLECODE/ ){next;}
+
+    my ($SAMPLECODE,$VCFCODE) =   split(/,/,$_);
     
     if( ! exists($c->{$SAMPLECODE})){
             $c->{$SAMPLECODE}={};
     }
+
     $c->{$SAMPLECODE}->{$VCFCODE}=1;
     $codes->{$VCFCODE}++;
 }
 
 close(F);
 #--------------------------------------
-
 
 #--------------------------------------
 print "#FILE\t";

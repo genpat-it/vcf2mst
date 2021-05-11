@@ -17,11 +17,11 @@ my ($f, $type)=@ARGV;
 if($type eq 'vcf'){
     qx{
         vcflist2codes.pl $f > samples_vcfcodes.csv;
-    }
+    };
     $f='samples_vcfcodes.csv';
 };
 
 qx{
-    vcf2ham.pl $f > hdmatrix.tsv;
+    perl vcf2ham.pl $f > hdmatrix.tsv;
     graptree -p hdmatrix.tsv > mst.nwk 
-}
+};
