@@ -20,7 +20,10 @@ while(<F>){
     chomp;
     if( $_=~ /SAMPLECODE/ ){next;}
 
-    my ($SAMPLECODE,$VCFCODE) =   split(/,/,$_);
+    my ($SAMPLECODE,$VCFCODE) =   split(/\t/,$_);
+    if( $VCFCODE eq ''){
+    	($SAMPLECODE,$VCFCODE) =   split(/,/,$_);
+    }
     
     if( ! exists($c->{$SAMPLECODE})){
             $c->{$SAMPLECODE}={};
