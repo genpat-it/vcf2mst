@@ -22,3 +22,26 @@ vcf2mst.pl list_of_vcfiles vcf > mst.nwk
 
 See `examples` folder for `samples_vcfcodes.csv` and `list_of_vcfiles` file format
 
+# Installation
+
+**Prerequisites**
+
+- Linux OS
+- [Perl basic installation](https://www.perl.org/)
+- [Graptree](https://github.com/achtman-lab/GrapeTree)
+
+**Installation Step**
+
+- clone/download vcf2mst on your system
+- let scripts be executable, e.g., `chmod a+x *.pl`
+- put perl scrypts in $PATH, e.g., `cp *.pl /usr/local/bin` 
+
+## Docker based installation
+
+- clone/download vcf2mst on your Linux based system
+- `docker build -t vcf2mst . `
+
+use it as in the following example
+
+`docker run -u $UID -v /tmp:/tmp --rm  vcf2mst vcf2mst.pl /tmp/list_of_vcfiles vcf > /tmp/mst.nwk `
+

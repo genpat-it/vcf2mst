@@ -14,17 +14,18 @@
 #
 my ($f, $out, $type)=@ARGV;
 
+# Run from list of vcf files (snippy format)
+# transorm in CSV vcfcodes files
+# 
 if($type eq 'vcf'){
-    qx{
-        vcflist2codes.pl $f > samples_vcfcodes.csv;
-    };
+    run("vcflist2codes.pl $f > samples_vcfcodes.csv");    
     $f='samples_vcfcodes.csv';
 };
 
-# esecuzione 
+# Run 
 # 
-run("perl vcf2ham.pl $f > /tmp/hdmatrix.tsv");
-run("docker run --mount type=bind,source=/tmp,destination=/tmp --rm quay.io/biocontainers/grapetree:2.1--pyh3252c3a_0 grapetree -p /tmp/hdmatrix.tsv > /tmp/mst.nwk ");
+run("vcf2ham.pl $f > /tmp/hdmatrix.tsv");
+run("grapetree -p /tmp/hdmatrix.tsv > /tmp/mst.nwk ");
 
 if( $out ) {
     qx{mv /tmp/mst.nwk  $out};
