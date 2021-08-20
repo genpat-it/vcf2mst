@@ -43,5 +43,11 @@ See `examples` folder for `samples_vcfcodes.csv` and `list_of_vcfiles` file form
 
 use it as in the following example
 
-`docker run -u $UID -v /tmp:/tmp --rm  vcf2mst vcf2mst.pl /tmp/list_of_vcfiles vcf > /tmp/mst.nwk `
+```
+usage 1: 
+docker run -u $UID -v /tmp:/tmp --rm  vcf2mst vcf2mst.pl samples_vcfcodes.csv > mst.nwk
 
+usage 2: 
+docker run -u $UID -v /tmp:/tmp --rm  vcf2mst vcf2mst.pl /tmp/list_of_vcfiles vcf > /tmp/mst.nwk 
+
+```
