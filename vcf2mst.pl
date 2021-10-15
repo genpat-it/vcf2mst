@@ -24,7 +24,7 @@ if($type eq 'vcf'){
 
 # Run 
 # 
-run("vcf2ham.pl $f > /tmp/hdmatrix.tsv");
+run("/usr/local/bin/vcf2ham.pl $f > /tmp/hdmatrix.tsv");
 run("grapetree -p /tmp/hdmatrix.tsv > /tmp/mst.nwk ");
 
 if( $out ) {
