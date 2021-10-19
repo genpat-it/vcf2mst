@@ -51,3 +51,5 @@ usage 2:
 docker run -u $UID -v /tmp:/tmp --rm  vcf2mst vcf2mst.pl /tmp/list_of_vcfiles vcf > /tmp/mst.nwk 
 
 ```
+
+
