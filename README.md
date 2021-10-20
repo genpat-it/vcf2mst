@@ -9,6 +9,8 @@ SARS-CoV-2 surveillance in Italy through phylogenomic inferences based on Hammin
 Adriano Di Pasquale, Nicolas Radomski, Iolanda Mangone, Paolo Calistri, Alessio Lorusso, Cesare Camma
 medRxiv 2021.05.25.21257370; doi: https://doi.org/10.1101/2021.05.25.21257370 
 
+Accepted on BMC Genomics 2021 
+
 ## Synopsis
 
 ```
