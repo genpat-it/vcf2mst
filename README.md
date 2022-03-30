@@ -14,14 +14,21 @@ BMC Genomics 22, 782 (2021). https://doi.org/10.1186/s12864-021-08112-0
 ## Synopsis
 
 ```sh
-usage 1: 
-vcf2mst.pl samples_vcfcodes.csv > mst.nwk
+#usage 1: 
+vcf2mst.pl samples_vcfcodes.tsv mst.nwk vcf
 
-usage 2: 
-vcf2mst.pl list_of_vcfiles vcf > mst.nwk
+#usage 2: 
+vcf2mst.pl gisaid_metadata.tsv mst.nwk gisaid
+
+#usage 3: 
+vcf2mst.pl list_of_vcfiles mst.nwk  vcf
+
+# usage 4: profile file only. return a matrix compatible with grapetree input
+vcf2mst.pl samples_vcfcodes.tsv profile.tsv vcf    profile 
+vcf2mst.pl gisaid_metadata.tsv  profile.tsv gisaid profile 
 ```
 
-See `examples` folder for `samples_vcfcodes.csv` and `list_of_vcfiles` file format
+See `examples` folder for `samples_vcfcodes.tsv` and `list_of_vcfiles` file format
 
 See section **Usage** for further details  
 
@@ -51,14 +58,14 @@ See section **Usage** for further details
 
 ```sh
 # plain
-vcf2mst.pl samples_vcfcodes.csv mst.nwk
+vcf2mst.pl samples_vcfcodes.tsv mst.nwk vcf
 # docker
-docker run -u $UID -v /tmp:/tmp --rm  vcf2mst vcf2mst.pl /tmp/samples_vcfcodes.csv  /tmp/mst.nwk
+docker run -u $UID -v /tmp:/tmp --rm  vcf2mst vcf2mst.pl /tmp/samples_vcfcodes.tsv  /tmp/mst.nwk
 ```
 
-See `examples` folder for `samples_vcfcodes.csv`  file format
+See `examples` folder for `samples_vcfcodes.tsv`  file format
 
-The VCFCODE in samples_vcfcodes.csv might be:
+The VCFCODE in samples_vcfcodes.tsv might be:
 
 * a variant code from a vcf file in `snippy` format or
 * a GISAID AA_SUBSTITUTIONS value from metadata.tsv (provided by GISAID) or 
@@ -104,4 +111,8 @@ In case there a docker installation of grapetree is used, GRAPETREE_EXEC can be 
 
 change the examples according to your specific installation and docker image
 
+
+## Getting the "profile file"
+
+the file 
 

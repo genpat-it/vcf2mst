@@ -6,31 +6,53 @@ my $presentation=q{vcf2mst.pl
 Hamming Distance based Minimum Spanning Tree from Samples vcf using graptree
 
 usage 1: 
-vcf2mst.pl samples_vcfcodes.csv mst.nwk 
+vcf2mst.pl samples_vcfcodes.tsv mst.nwk vcf
 
 usage 2: 
+vcf2mst.pl gisaid_metadata.tsv mst.nwk gisaid
+
+usage 3: 
 vcf2mst.pl list_of_vcfiles mst.nwk  vcf
 
 For additional info visit 
 https://github.com/genpat-it/vcf2mst
+
+usage 4: profile file only
+vcf2mst.pl samples_vcfcodes.tsv profile.tsv vcf    profile 
+vcf2mst.pl gisaid_metadata.tsv  profile.tsv gisaid profile 
+
+return a matrix compatible with grapetree input
+
 };
-my ($f, $out, $type)=@ARGV;
+
+my ($f, $out, $type, $profile)=@ARGV;
 
 #-----------------------------------
 # MAIN 
 #-----------------------------------
 init();
 
+# input
+#
 if( $type eq 'vcf'){
     $f=vcfListSnippy2Codes($f);
 }elsif( $type eq 'gisaid'){
     $f=gisaidMetadata2Codes($f);
 }
 
-$f= vcf2ham($f);              #run("perl vcf2ham.pl $f > /tmp/hdmatrix.tsv");
-run("$grapetreeCommand $f > $out");
+# vcf2hammingdistance
+#
+$f= vcf2ham($f);             
 
-print "DONE! newick file in $out \n";
+if($profile){
+    qx{cp $f $out};
+    print "DONE! profile file in $out \n";
+}else{
+    # grapetree
+    #
+    run("$grapetreeCommand $f > $out");
+    print "DONE! newick file in $out \n";
+}
 #-----------------------------------
 
 
@@ -140,8 +162,6 @@ sub fileList2Array{ my ($f) =@_;
 #
 #-------------------------------------
 #
-
-
 sub gisaidMetadata2Codes{ my ($file) =@_; 
     #
     # Produce a tsv of sample\tvcfcode 
