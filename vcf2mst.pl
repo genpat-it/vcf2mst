@@ -5,24 +5,24 @@
 my $presentation=q{vcf2mst.pl         
 Hamming Distance based Minimum Spanning Tree from Samples vcf using graptree
 
-usage 1: 
+#usage 1: 
 vcf2mst.pl samples_vcfcodes.tsv mst.nwk code
 
-usage 2: 
+#usage 2: 
 vcf2mst.pl gisaid_metadata.tsv mst.nwk gisaid
 
-usage 3: 
+#usage 3: 
 vcf2mst.pl list_of_vcfiles mst.nwk  vcf
+
+#usage 4: profile file only. return a matrix compatible with grapetree input
+vcf2mst.pl samples_vcfcodes.tsv profile.tsv code   profile 
+vcf2mst.pl list_of_vcfiles      profile.tsv vcf    profile 
+vcf2mst.pl gisaid_metadata.tsv  profile.tsv gisaid profile 
+
 
 For additional info visit 
 https://github.com/genpat-it/vcf2mst
 
-usage 4: profile file only
-vcf2mst.pl samples_vcfcodes.tsv profile.tsv code   profile 
-vcf2mst.pl samples_vcfcodes.tsv profile.tsv vcf    profile 
-vcf2mst.pl gisaid_metadata.tsv  profile.tsv gisaid profile 
-
-return a matrix compatible with grapetree input
 
 };
 

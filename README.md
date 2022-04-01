@@ -59,9 +59,9 @@ See section **Usage** for further details
 
 ```sh
 # plain
-vcf2mst.pl samples_vcfcodes.tsv mst.nwk vcf
+vcf2mst.pl samples_vcfcodes.tsv mst.nwk code
 # docker
-docker run -u $UID -v /tmp:/tmp --rm  vcf2mst vcf2mst.pl /tmp/samples_vcfcodes.tsv  /tmp/mst.nwk
+docker run -u $UID -v /tmp:/tmp --rm  vcf2mst vcf2mst.pl /tmp/samples_vcfcodes.tsv  /tmp/mst.nwk code
 ```
 
 See `examples` folder for `samples_vcfcodes.tsv`  file format
@@ -111,9 +111,4 @@ In case there a local installation of grapetree is used, GRAPETREE_EXEC can be s
 In case there a docker installation of grapetree is used, GRAPETREE_EXEC can be set like  `export GRAPETREE_EXEC=docker run  --mount type=bind,source=/tmp,destination=/tmp --rm quay.io/biocontainers/grapetree:2.1--pyh3252c3a_0 grapetree -p`  
 
 change the examples according to your specific installation and docker image
-
-
-## Getting the "profile file"
-
-the file 
 
