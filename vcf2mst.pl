@@ -6,7 +6,7 @@ my $presentation=q{vcf2mst.pl
 Hamming Distance based Minimum Spanning Tree from Samples vcf using graptree
 
 usage 1: 
-vcf2mst.pl samples_vcfcodes.tsv mst.nwk vcf
+vcf2mst.pl samples_vcfcodes.tsv mst.nwk code
 
 usage 2: 
 vcf2mst.pl gisaid_metadata.tsv mst.nwk gisaid
@@ -18,6 +18,7 @@ For additional info visit
 https://github.com/genpat-it/vcf2mst
 
 usage 4: profile file only
+vcf2mst.pl samples_vcfcodes.tsv profile.tsv code   profile 
 vcf2mst.pl samples_vcfcodes.tsv profile.tsv vcf    profile 
 vcf2mst.pl gisaid_metadata.tsv  profile.tsv gisaid profile 
 
@@ -38,6 +39,7 @@ if( $type eq 'vcf'){
     $f=vcfListSnippy2Codes($f);
 }elsif( $type eq 'gisaid'){
     $f=gisaidMetadata2Codes($f);
+}elsif( $type eq 'code'){
 }
 
 # vcf2hammingdistance
@@ -95,11 +97,9 @@ sub vcfListSnippy2Codes{ my ($file) =@_;
 
             my $r=$_;
             my @ar=split(/\t/,$r);
-            my $type=''; my $code='';
-            if( $r =~ /;TYPE=(\w+);/){
-                $type=$1;
-            }
-
+            my $type=@ar[2]; 
+            my $code='';
+            
             if( $type eq 'snp'){
                 $code= "$type:@ar[3]@ar[1]@ar[4]";
             }elsif( $type eq 'mnp'){
@@ -275,7 +275,7 @@ sub init{
 
     if(! $type ){
         print "MODE: SAMPLECODE,VCFCODE \n";
-    }elsif( $type =~ /^(vcf|gisaid)$/ ){
+    }elsif( $type =~ /^(vcf|gisaid|code)$/ ){
         print "MODE: $type \n";
     }else{
         print "ERROR: MODE NOT RECOGNIZED: $type\n";

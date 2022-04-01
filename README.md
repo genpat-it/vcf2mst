@@ -15,7 +15,7 @@ BMC Genomics 22, 782 (2021). https://doi.org/10.1186/s12864-021-08112-0
 
 ```sh
 #usage 1: 
-vcf2mst.pl samples_vcfcodes.tsv mst.nwk vcf
+vcf2mst.pl samples_vcfcodes.tsv mst.nwk code
 
 #usage 2: 
 vcf2mst.pl gisaid_metadata.tsv mst.nwk gisaid
@@ -23,8 +23,9 @@ vcf2mst.pl gisaid_metadata.tsv mst.nwk gisaid
 #usage 3: 
 vcf2mst.pl list_of_vcfiles mst.nwk  vcf
 
-# usage 4: profile file only. return a matrix compatible with grapetree input
-vcf2mst.pl samples_vcfcodes.tsv profile.tsv vcf    profile 
+#usage 4: profile file only. return a matrix compatible with grapetree input
+vcf2mst.pl samples_vcfcodes.tsv profile.tsv code   profile 
+vcf2mst.pl list_of_vcfiles      profile.tsv vcf    profile 
 vcf2mst.pl gisaid_metadata.tsv  profile.tsv gisaid profile 
 ```
 
