@@ -6,23 +6,21 @@ my $presentation=q{vcf2mst.pl
 Hamming Distance based Minimum Spanning Tree from Samples vcf using graptree
 
 #usage 1: 
-vcf2mst.pl samples_vcfcodes.tsv mst.nwk code
+vcf2mst.pl samples_vcfcodes.tsv  mst.nwk code
 
 #usage 2: 
-vcf2mst.pl gisaid_metadata.tsv mst.nwk gisaid
+vcf2mst.pl gisaid_metadata.tsv   mst.nwk gisaid
 
 #usage 3: 
-vcf2mst.pl list_of_vcfiles mst.nwk  vcf
+vcf2mst.pl list_of_vcfiles       mst.nwk vcf
 
 #usage 4: profile file only. return a matrix compatible with grapetree input
 vcf2mst.pl samples_vcfcodes.tsv profile.tsv code   profile 
 vcf2mst.pl list_of_vcfiles      profile.tsv vcf    profile 
 vcf2mst.pl gisaid_metadata.tsv  profile.tsv gisaid profile 
 
-
 For additional info visit 
 https://github.com/genpat-it/vcf2mst
-
 
 };
 
@@ -50,9 +48,12 @@ if($profile){
     qx{cp $f $out};
     print "DONE! profile file in $out \n";
 }else{
+    #-----------------------------------
     # grapetree
-    #
+    #-----------------------------------
+    ###########profile2ids();
     run("$grapetreeCommand $f > $out");
+    ###########ids2profile();    
     print "DONE! newick file in $out \n";
 }
 #-----------------------------------
@@ -63,20 +64,20 @@ if($profile){
 # BASIC UTILS
 #-----------------------------------
 sub run{ my ($s) =@_;    
+    #
+    #   runa a bash command taking start stop time
+    #
     print "$s";
     print "\nstart: " . qx{date};
     qx{$s};
     print "\nstop: " . qx{date};
 }
 
-#-----------------------------------
-# vcfListSnippy2Codes
-#-----------------------------------
 sub vcfListSnippy2Codes{ my ($file) =@_;    
-    #
+    #-----------------------------------------------
     # Produce a tsv of sample\tvcfcode 
     # starting from vcf files in snippy format
-    #
+    #-----------------------------------------------
     my $ar=fileList2Array($file);
 
     my $out= "SAMPLECODE\tVCFCODE\n";
@@ -96,22 +97,24 @@ sub vcfListSnippy2Codes{ my ($file) =@_;
             if( $_ =~ /^#/){next;}
 
             my $r=$_;
-            my @ar=split(/\t/,$r);
-            my $type=@ar[2]; 
+            # split. fields from snippy            
+            # CHROM	POS	TYPE	REF	ALT	EVIDENCE	FTYPE	STRAND	NT_POS	AA_POS	EFFECT	LOCUS_TAG	GENE	PRODUCT
+            my @ar=split(/\t/,$r); 
+            #my $type=@ar[2]; 
+            my ($chrom,$pos,$type,$ref,$alt)=@ar; 
             my $code='';
-            
             if( $type eq 'snp'){
-                $code= "$type:@ar[3]@ar[1]@ar[4]";
+                $code= "$type:$ref$pos$alt";
             }elsif( $type eq 'mnp'){
-                $code= "$type:@ar[3]@ar[1]@ar[4]";
+                $code= "$type:$ref$pos$alt";
             }elsif( $type =~ 'del' ){
-                $pos=@ar[1] + 1;
-                $pos2=$pos + length(@ar[3]) -2;
+                $pos=$pos + 1;
+                $pos2=$pos + length($ref) -2;
                 $code= "$type:$pos-$pos2";
             }else{
-                $code= "$type:@ar[1]-@ar[3]-@ar[4]";
+                $code= "$type:$pos-$ref-$alt";
             }
-            $out .= "$cmp\t$code\n";
+            $out .= "$cmp\t$code\t$pos\n";
         }
     close(F);
     }
@@ -126,10 +129,10 @@ sub vcfListSnippy2Codes{ my ($file) =@_;
 }
 #-----------------------------------
 
-#-----------------------------
-# fileList2Array
-#-----------------------------
 sub fileList2Array{ my ($f) =@_;
+    #-----------------------------
+    # fileList2Array
+    #-----------------------------
     my @ar;
     if( $f eq '' ){
         while(<>){
@@ -163,7 +166,7 @@ sub fileList2Array{ my ($f) =@_;
 #-------------------------------------
 #
 sub gisaidMetadata2Codes{ my ($file) =@_; 
-    #
+    #-------------------------------------
     # Produce a tsv of sample\tvcfcode 
     # starting from gisaid metadata file format
     # 
@@ -172,7 +175,7 @@ sub gisaidMetadata2Codes{ my ($file) =@_;
     # to
     #   hCoV-19/Tunisia/MHT_2/2020      N_S202N
     #   hCoV-19/Tunisia/MHT_2/2020      NS8_L84S
-    #
+    #-------------------------------------
     my $out= "SAMPLECODE\tVCFCODE\n";
     open(F, $file);
     while(<F>){
@@ -183,8 +186,17 @@ sub gisaidMetadata2Codes{ my ($file) =@_;
             $vcfstring=$2;
             #print "$cmp--- $vcfstring\n";
             @vcfs=split(/,/,$vcfstring);
+            my $pos;
             foreach $v (@vcfs) {
-                $out .=  "$cmp\t$v\n";
+                #
+                # pos calculation. codes examples
+                # NSP3_I1413L,N_S33del,Spike_ins214EPE
+                #   
+                $pos='-1';
+                if( $v=~/^(.*?_\w+\d+)/ ) {
+                    $pos=$1;
+                }
+                $out .=  "$cmp\t$v\t$pos\n";
             }
         }
     }
@@ -222,34 +234,63 @@ sub vcf2ham { my ($f)=@_;
     while(<F>){
         chomp;
         if( $_=~ /SAMPLECODE/ ){next;}
-
-        my ($SAMPLECODE,$VCFCODE) =   split(/\t/,$_);
+        if( $_=~ /TYPE/ ){next;}
+        
+        my ($SAMPLECODE,$VCFCODE,$POS) =   split(/\t/,$_);
         if( $VCFCODE eq ''){
-            ($SAMPLECODE,$VCFCODE) =   split(/,/,$_);
+            ($SAMPLECODE,$VCFCODE,$POS) =   split(/,/,$_);
         }
         
         if( ! exists($c->{$SAMPLECODE})){
-                $c->{$SAMPLECODE}={};
+            $c->{$SAMPLECODE}={};
         }
 
-        $c->{$SAMPLECODE}->{$VCFCODE}=1;
-        $codes->{$VCFCODE}++;
-    }
+        ############### NEW ###############
+        #
+        # code based on position
+        # 
+        if( ! exists($codes->{$POS}) ){
+            $max->{$POS}=0;
+            $codes->{$POS}={};
+        }
+        if( ! exists($codes->{$POS}->{$VCFCODE}) ){
+            my $allele_code = $max->{$POS} + 1;
 
+            $codes->{$POS}->{$VCFCODE}=$allele_code;
+            $max->{$POS}              =$allele_code;
+        }
+        
+        $c->{$SAMPLECODE}->{$POS} = $codes->{$POS}->{$VCFCODE};
+        
+        ############### OLD ###############
+        # $c->{$SAMPLECODE}->{$VCFCODE}=1;
+        # $codes->{$VCFCODE}++;
+        ###############
+    }
     close(F);
 
     my $out="";
-    #
+    #---------------------------
     # out
-    # 
+    #---------------------------
+
+    #
+    # Header
+    #
     $out .= "#FILE\t";
     foreach $cod (sort(keys(%$codes))){    $out .= "$cod\t";}
     $out .= "\n";
 
+    #
+    # "allele" codes
+    #
     foreach $cmp (sort(keys(%$c))){
         $out .= "$cmp\t";
-        foreach $cod (sort(keys(%$codes))){    
-            my $val=( $c->{$cmp}->{$cod} )?1:2;
+        foreach $cod (sort(keys(%$codes))){
+            my $allele=$c->{$cmp}->{$cod};
+            my $val=( $allele )?
+                    $allele + 1 :
+                    1;
             $out .= "$val\t";
         }
         $out .= "\n";
@@ -267,12 +308,10 @@ sub vcf2ham { my ($f)=@_;
 #--------------------------------------
 
 sub init{
-
     if( ! $f ){
         print $presentation;
         exit;          
     }
-
     if(! $type ){
         print "MODE: SAMPLECODE,VCFCODE \n";
     }elsif( $type =~ /^(vcf|gisaid|code)$/ ){
