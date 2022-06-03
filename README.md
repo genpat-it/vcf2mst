@@ -1,37 +1,41 @@
 # vcf2mst
 
-Hamming Distance based Minimum Spanning Tree from Samples vcf using graptree
+Hamming Distance based Minimum Spanning Tree from Samples vcf using graptree.
+
  - [Link to the Paper](https://bmcgenomics.biomedcentral.com/articles/10.1186/s12864-021-08112-0).
 
-When using vcf2mst please use the following citation:
 
+When using vcf2mst please use the following citation:
 
 SARS-CoV-2 surveillance in Italy through phylogenomic inferences based on Hamming distances derived from functional annotations of SNPs, MNPs and InDels
 Adriano Di Pasquale, Nicolas Radomski, Iolanda Mangone, Paolo Calistri, Alessio Lorusso, Cesare Camma
 BMC Genomics 22, 782 (2021). https://doi.org/10.1186/s12864-021-08112-0
 
-
 ## Synopsis
 
 ```sh
-#usage 1: 
-vcf2mst.pl samples_vcfcodes.tsv mst.nwk code
+# Basic usage
+vcf2mst.pl input_tsv_file out_file type_of_input [options]
 
-#usage 2: 
-vcf2mst.pl gisaid_metadata.tsv mst.nwk gisaid
+# type_of_input=[vcf,gisaid,algn2pheno,nextclade,tsv,code]
 
-#usage 3: 
-vcf2mst.pl list_of_vcfiles mst.nwk  vcf
+# Examples
 
-#usage 4: profile file only. return a matrix compatible with grapetree input
-vcf2mst.pl samples_vcfcodes.tsv profile.tsv code   profile 
-vcf2mst.pl list_of_vcfiles      profile.tsv vcf    profile 
-vcf2mst.pl gisaid_metadata.tsv  profile.tsv gisaid profile 
+# type of inputs
+vcf2mst.pl list_of_vcfiles           mst.nwk vcf
+vcf2mst.pl gisaid_metadata.tsv       mst.nwk gisaid
+vcf2mst.pl algn2pheno_metadata.tsv   mst.nwk algn2pheno
+vcf2mst.pl nextclade_metadata.tsv    mst.nwk nextclade
+vcf2mst.pl samples_vcfcodes.tsv      mst.nwk code
+
+# profile file only. return a matrix compatible with grapetree input
+vcf2mst.pl list_of_vcfiles      profile.tsv vcf    -out profile 
+
+# usage 5: filter positions
+vcf2mst.pl list_of_vcfiles      mst.tsv     vcf    -minmax 10-10000
 ```
 
-See `examples` folder for `samples_vcfcodes.tsv` and `list_of_vcfiles` file format
-
-See section **Usage** for further details  
+See `examples` folder for the different file formats. See section **Usage** for further details  
 
 # Installation
 
@@ -55,6 +59,62 @@ See section **Usage** for further details
 
 # Usage
 
+```sh
+# Basic usage
+vcf2mst.pl input_tsv_file out_file type_of_input [options]
+```
+
+**type_of_input**=[vcf,gisaid,algn2pheno,nextclade,tsv,code]
+
+**options:**
+
+* *-out string=(profile|newick)*: If *string=profile*, the output is just the profile file, without calculating distances and MST. Default is *newick*.
+* *-minmax value*: Take mutations with position in the "`value`" interval. Format `value` is `min1:max1,min2:max2`. Example `-minmax 0-100,200-1500,5000-5500`
+* *-minmax-exclude value*: Exlude mutations with position in the "`value`" interval. Format is the same of `-minmax` value
+* *-tsv-XXX*: different options for manipulating a tsv file containing at least 2 columns sample_name and list_of_mutation_codes. This options are considered only in case of *type_of_input=tsv*
+  * *-tsv-separator char: the character used as separator on tsv/csv file.(default='\t')
+  * *-tsv-sample-pos pos: the position in the tsv file of column containing the sample_name (first position is 0).(default=0)
+  * *-tsv-mutationslist-find string=(pos|regexp)*: the way to find the list_of_mutation_codes string in tsv file. if string=pos, -tsv-mutationslist-pos must be set.  if string=regexp, -tsv-mutationslist-regexp must be set. (default=regexp)
+  * *-tsv-mutationslist-pos pos*: the position in the tsv file of column containing the list_of_mutation_codes (first position is 0) 
+  * *-tsv-mutationslist-regexp string*: the regular expression used to extract the list_of_mutation_codes string. default="`\((.*)\)`"
+  * *-tsv-mutation-sep char: the character used as separator between mutations on list_of_mutation_codes string. default=','
+  * *-tsv-mutation-pos-regexp string*:  the regular expression used to extract the position of the mutation. default="`^(.*?[_:]?)\w*(\d+)`"
+  * *-tsv-mutation-pos-replace string*: the regular expression used to extract the position of the mutation. default="`$1$2`"
+
+## From snippy format vcf files 
+
+```sh
+# plain
+vcf2mst.pl list_of_vcfiles mst.nwk  vcf
+# docker
+docker run -u $UID -v /tmp:/tmp --rm  vcf2mst vcf2mst.pl /tmp/list_of_vcfiles  /tmp/mst.nwk vcf
+``` 
+
+See `examples/list_of_vcfiles` for file format
+
+## From snippy format vcf director
+
+```sh
+# plain
+vcf2mst.pl folder_with_vcfiles mst.nwk  vcf
+# docker
+docker run -u $UID -v /tmp:/tmp --rm  vcf2mst vcf2mst.pl /tmp/folder_with_vcfiles /tmp/mst.nwk vcf 
+```
+
+See `examples/vcfiles` for folder format 
+
+## From gisaid metadata.tsv 
+
+```sh
+# plain
+vcf2mst.pl gisaid_metadata.tsv mst.nwk  gisaid
+# docker
+docker run -u $UID -v /tmp:/tmp --rm  vcf2mst vcf2mst.pl /tmp/gisaid_metadata.tsv /tmp/mst.nwk  gisaid
+```
+
+See `examples` folder for  `gisaid_metadata.tsv` file format (minimum information needed) and  `gisaid_full_metadata.tsv` (downloadable from gisaid) file format.
+
+
 ## From vcfcodes csv file
 
 ```sh
@@ -72,35 +132,9 @@ The VCFCODE in samples_vcfcodes.tsv might be:
 * a GISAID AA_SUBSTITUTIONS value from metadata.tsv (provided by GISAID) or 
 * any other variant code produced by any `"variant caller"` of your own choice which maintain the condition `Same variant -> Same code` 
 
-## From snippy format vcf files 
 
-```sh
-# plain
-vcf2mst.pl list_of_vcfiles mst.nwk  vcf
-# docker
-docker run -u $UID -v /tmp:/tmp --rm  vcf2mst vcf2mst.pl /tmp/list_of_vcfiles  /tmp/mst.nwk vcf
-```
+## Options
 
-See `examples/vcfiles` folder for  `list_of_vcfiles` file format
-
-## From snippy format vcf director
-
-```sh
-# plain
-vcf2mst.pl folder_with_vcfiles mst.nwk  vcf
-# docker
-docker run -u $UID -v /tmp:/tmp --rm  vcf2mst vcf2mst.pl /tmp/folder_with_vcfiles /tmp/mst.nwk vcf 
-```
-
-## From gisaid metadata.tsv 
-
-```sh
-# plain
-vcf2mst.pl gisaid_metadata.tsv mst.nwk  gisaid
-# docker
-docker run -u $UID -v /tmp:/tmp --rm  vcf2mst vcf2mst.pl /tmp/gisaid_metadata.tsv /tmp/mst.nwk  gisaid
-```
-See `examples` folder for  `gisaid_metadata.tsv` file format (minimum information needed) and  `gisaid_full_metadata.tsv` (what is downloadable from gisaid) file format.
 
 
 ## GrapeTree command
