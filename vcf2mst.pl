@@ -43,51 +43,40 @@ https://github.com/genpat-it/vcf2mst
 };
 my ($f, $out, $type, $options)=@ARGV;
 my %opt;
-#-----------------------------------
-# MAIN 
-#-----------------------------------
-init();
 
-#
-# input 2 variant codes
-#
-if( $type eq 'vcf'){                $f=vcfListSnippy2Codes($f);
-}elsif( $type =~ /(nextclade|algn2pheno|gisaid)/ ){     
-                                    $f=gisaidMetadata2Codes($f);
-};
+main();
 
-#
-# vcf2profile
-#
-$f= vcf2profile($f);
-
-if($opt{out} eq 'profile'){
-    qx{cp $f $out};
-    print "DONE! profile file in $out \n";
-}else{
+sub main{
     #-----------------------------------
-    # grapetree
+    # MAIN 
     #-----------------------------------
-    ###########profile2ids();
-    run("$grapetreeCommand $f > $out");
-    ###########ids2profile();    
-    print "DONE! newick file in $out \n";
-}
-#-----------------------------------
-
-
-#-----------------------------------
-# BASIC UTILS
-#-----------------------------------
-sub run{ my ($s) =@_;    
+    init();
     #
-    #   run a bash command taking start stop time
+    # input -> variant codes
     #
-    print "$s";
-    print "\nstart: " . qx{date};
-    qx{$s};
-    print "\nstop: " . qx{date};
+    if( $type eq 'vcf'){                $f=vcfListSnippy2Codes($f);
+    }elsif( $type =~ /(nextclade|algn2pheno|gisaid)/ ){     
+                                        $f=gisaidMetadata2Codes($f);
+    };
+    #
+    # vcf2profile
+    #
+    $f= vcf2profile($f);
+
+    if($opt{out} eq 'profile'){
+        qx{cp $f $out};
+        print "DONE! profile file in $out \n";
+    }else{
+        #-----------------------------------
+        # grapetree
+        #-----------------------------------
+        ###########profile2ids();
+        _run("$grapetreeCommand $f > $out");
+        ###########ids2profile();    
+        print "DONE! newick file in $out \n";
+    }
 }#-----------------------------------
+
 
 sub vcfListSnippy2Codes{ my ($file) =@_;    
     #-----------------------------------------------
@@ -189,7 +178,7 @@ sub gisaidMetadata2Codes{ my ($file) =@_;
     while(<F>){
         chomp;
         #print $_;
-        ($cmp,$vcfstring)=   _row2_cmp_vcfstring($_);
+        ($cmp,$vcfstring)=   _row2cmp_vcfstring($_);
         # if($_=~/^(\S+)[^\(]+\((\S+)\)/){
         if($cmp){
             #print "$cmp--- $vcfstring\n";
@@ -226,7 +215,7 @@ sub gisaidMetadata2Codes{ my ($file) =@_;
 
 
 
-sub _row2_cmp_vcfstring{  my ($s) =@_; 
+sub _row2cmp_vcfstring{  my ($s) =@_; 
     #
     #   -tsv-sample-pos pos: the position in the tsv file of column containing the sample_name (first position is 0).(default=0)
     #   -tsv-mutationslist-find string=(pos|regexp)*: the way to find the list_of_mutation_codes string in tsv file. if string=pos, -tsv-mutationslist-pos must be set.  if string=regexp, -tsv-mutationslist-regexp must be set. (default=regexp)
@@ -274,57 +263,6 @@ sub _row2_cmp_vcfstring{  my ($s) =@_;
     return ($cmp,$vcfstring);
 }#-----------------------------------
 
-
-sub _OLD_gisaidMetadata2Codes{ my ($file) =@_; 
-    #-------------------------------------
-    # Produce a tsv of sample\tvcfcode\tpos 
-    # starting from gisaid metadata file format
-    # 
-    # From
-    #   hCoV-19/Tunisia/MHT_2/2020      (N_S202N,NS8_L84S)
-    # to
-    #   hCoV-19/Tunisia/MHT_2/2020      N_S202N     N_S202
-    #   hCoV-19/Tunisia/MHT_2/2020      NS8_L84S    NS8_L84
-    # 
-    #-------------------------------------
-    my $out= "SAMPLECODE\tVCFCODE\tPOS\n";
-    open(F, $file);
-    while(<F>){
-        chomp;
-        #print $_;
-        if($_=~/^(\S+)[^\(]+\((\S+)\)/){
-            $cmp=$1;
-            $vcfstring=$2;
-            #print "$cmp--- $vcfstring\n";
-            @vcfs=split(/,/,$vcfstring);
-            my $pos;
-            foreach $v (@vcfs) {
-                #
-                # pos calculation. compatible codes examples
-                # GISAID: 
-                #   NSP3_I1413L, N_S33del, Spike_ins214EPE  ->  NSP3_1413, N_33, Spike_214
-                # INSA algn2pheno script:
-                #   N:I1413L,    N:S33del, S:ins214EPE      ->  N:1413,    N:33, S:214
-                # NEXTCLADE: 
-                #   I1413L,      S33del,   ins214EPE        ->  1413,      33,   214
-                #   
-                $pos='-1';
-                if( $v=~/^(.*?[_:]?)\w*(\d+)/ ) {
-                    $pos="$1$2";
-                }
-                $out .=  "$cmp\t$v\t$pos\n";
-            }
-        }
-    }
-    close(F);
-    
-    my $out_file="/tmp/samples_vcfcodes.csv";
-    open(F, ">$out_file" );
-    print F $out;
-    close(F);
-    
-    return $out_file;
-}#-----------------------------------
 
 #############################################
 #  vcf -> profile
@@ -497,7 +435,7 @@ sub init{
         }
     }
    
-    if($options){
+    if($options && ($options ne $initial_options)){
         print "options not recognized\n$options\n";
         exit;
     }
@@ -515,40 +453,16 @@ sub init_set_option_defaults {
     $opt{'tsv-mutation-pos-replace'}='$1$2';
 };
 
-<<_________COMMENT_____________;
-
-
-* *-minmax value*: Take mutations with position in the "`value`" interval. Format `value` is `min1:max1,min2:max2`. Example `-minmax 0-100,200-1500,5000-5500`
-* *-minmaxExclude value*: Exlude mutations with position in the "`value`" interval. Format is the same of `-minmax` value
-
-* *-tsv-XXX*: different options for manipulating a tsv file containing at least 2 columns sample_name and list_of_mutation_codes. This options are considered only in case of *type_of_input=tsv*
-  * *-tsv-separator char: the character used as separator on tsv/csv file.(default='\t')
-  * *-tsv-sample-pos pos: the position in the tsv file of column containing the sample_name (first position is 0).(default=0)
-  * *-tsv-mutationslist-find string=(pos|regexp)*: the way to find the list_of_mutation_codes string in tsv file. if string=pos, -tsv-mutationslist-pos must be set.  if string=regexp, -tsv-mutationslist-regexp must be set. (default=regexp)
-  * *-tsv-mutationslist-pos pos*: the position in the tsv file of column containing the list_of_mutation_codes (first position is 0) 
-  * *-tsv-mutationslist-regexp string*: the regular expression used to extract the list_of_mutation_codes string. default="`\((.*)\)`"
-  * *-tsv-mutation-sep char: the character used as separator between mutations on list_of_mutation_codes string. default=','
-  * *-tsv-mutation-pos-regexp string*:  the regular expression used to extract the position of the mutation. default="`^(.*?[_:]?)\w*(\d+)`"
-  * *-tsv-mutation-pos-replace string*: the regular expression used to extract the position of the mutation. default="`$1$2`"
-
-
-
-            if($k =~ /^(minNT|max-nt|min-aa|max-aa)xNT
-           
-                print " -$k=$opt{$k}\t{minNT};{
-                    if($POS ><$k=$o ){return;}
-next }
-            }elsprint " -$k=$opt{$k}\t{maxNT};{
-                    if($POS ><$k=$o ){retur>;}
-next          maxNT
-            }else{
-                print " -$k is not recgnized\n";
-            }
-        }
-    }  
-algn 9
-next 26
-
-_________COMMENT_____________
-
+#-----------------------------------
+# BASIC UTILS
+#-----------------------------------
+sub _run{ my ($s) =@_;    
+    #
+    #   run a bash command taking start stop time
+    #
+    print "$s";
+    print "\nstart: " . qx{date};
+    qx{$s};
+    print "\nstop: " . qx{date};
+}#-----------------------------------
 
