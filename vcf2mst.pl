@@ -34,30 +34,27 @@ vcf2mst.pl samples_vcfcodes.tsv      mst.nwk code
 vcf2mst.pl list_of_vcfiles      profile.tsv vcf    -out profile 
 
 # usage 5: filter positions
-vcf2mst.pl list_of_vcfiles      profile.tsv vcf    -minNT 10 -maxNT 10000
+vcf2mst.pl list_of_vcfiles      profile.tsv vcf    -minmax 10-10000
 ```
 
 For additional info visit 
 https://github.com/genpat-it/vcf2mst
 
 };
+#-----------------------------------
+# MAIN 
+#-----------------------------------
 my ($f, $out, $type, $options)=@ARGV;
 my %opt;
 
 main();
 
 sub main{
-    #-----------------------------------
-    # MAIN 
-    #-----------------------------------
     init();
     #
     # input -> variant codes
     #
-    if( $type eq 'vcf'){                $f=vcfListSnippy2Codes($f);
-    }elsif( $type =~ /(nextclade|algn2pheno|gisaid)/ ){     
-                                        $f=gisaidMetadata2Codes($f);
-    };
+    $f=input2variantcodes($f);
     #
     # vcf2profile
     #
@@ -77,8 +74,18 @@ sub main{
     }
 }#-----------------------------------
 
+sub input2variantcodes{ my ($f) =@_;    
+    if(     $type eq 'vcf'){
+                                        $f=_vcfListSnippy2Codes($f);
+    }elsif( $type eq 'tsv'){
+                                        $f=_tsv2Codes($f);
+    }elsif( $type =~ /(nextclade|algn2pheno|gisaid)/ ){
+                                        $f=_gisaidMetadata2Codes($f);
+    };
+    return $f;    
+}#-----------------------------------
 
-sub vcfListSnippy2Codes{ my ($file) =@_;    
+sub _vcfListSnippy2Codes{ my ($file) =@_;    
     #-----------------------------------------------
     # Produce a tsv of sample\tvcfcode\tpos 
     # starting from vcf files in snippy format
@@ -90,7 +97,7 @@ sub vcfListSnippy2Codes{ my ($file) =@_;
     #   NC_045512      snp:C241T    241
     #   NC_045512      snp:C344T    344
     #-----------------------------------------------
-    my $ar=fileList2Array($file);
+    my $ar=__fileList2Array($file);
     my $out= "SAMPLECODE\tVCFCODE\tPOS\n";
     my $err= '';
     foreach my $f (@{$ar}){
@@ -126,7 +133,7 @@ sub vcfListSnippy2Codes{ my ($file) =@_;
         }
     close(F);
     }
-    #qx{         vcfListSnippy2Codes.pl $f > samples_vcfcodes.csv;     };    
+    #qx{         _vcfListSnippy2Codes.pl $f > samples_vcfcodes.csv;     };    
     my $out_file="/tmp/samples_vcfcodes.csv";
     open(F, ">$out_file" );
     print F $out;
@@ -134,34 +141,8 @@ sub vcfListSnippy2Codes{ my ($file) =@_;
     return $out_file;
 }#-----------------------------------
 
-sub fileList2Array{ my ($f) =@_;
-    #-----------------------------
-    # fileList2Array
-    #-----------------------------
-    my @ar;
-    if( $f eq '' ){
-        while(<>){
-            chomp;
-            push(@ar, $_);
-        }
-    }elsif( -e $f ){
-        my $ris='';
-        if( -d $f ){
-            $ris=qx{find $f};
-        }else{
-            $ris=qx{cat $f};
-        }
-        @ar=split(/\n/,$ris);
-	# use Data::Dumper;         print Dumper(\@ar);
-    }else{
-        die("file/dir not present: $f ")
-    }
 
-    return \@ar;
-}#-----------------------------------
-
-
-sub gisaidMetadata2Codes{ my ($file) =@_; 
+sub _gisaidMetadata2Codes{ my ($file) =@_; 
     #-------------------------------------
     # Produce a tsv of sample\tvcfcode\tpos 
     # starting from gisaid metadata file format
@@ -178,11 +159,11 @@ sub gisaidMetadata2Codes{ my ($file) =@_;
     while(<F>){
         chomp;
         #print $_;
-        ($cmp,$vcfstring)=   _row2cmp_vcfstring($_);
+        ($cmp,$vcfstring)=   __row2cmp_vcfstring($_);
         # if($_=~/^(\S+)[^\(]+\((\S+)\)/){
         if($cmp){
             #print "$cmp--- $vcfstring\n";
-            @vcfs=split(/[,;q]/,$vcfstring);
+            @vcfs=split(/[,;]/,$vcfstring);
             my $pos;
             foreach $v (@vcfs) {
                 #
@@ -213,9 +194,47 @@ sub gisaidMetadata2Codes{ my ($file) =@_;
     return $out_file;
 }#-----------------------------------
 
+sub _tsv2Codes{ my ($file) =@_; 
+    #-------------------------------------
+    # Produce a tsv of sample\tvcfcode\tpos 
+    # starting from generic tsv format. 
+    # based on options tsv-XXX 
+    # 
+    my $out= "SAMPLECODE\tVCFCODE\tPOS\n";
+    open(F, $file);
+    while(<F>){
+        chomp;
+        ($cmp,$vcfstring)=   __row2cmp_vcfstring($_);
+        if($cmp){
+            my $sep    =$opt{'tsv-mutation-sep'};
+            my $regexp =$opt{'tsv-mutation-pos-regexp'};
+            my $replace=$opt{'tsv-mutation-pos-replace'};
+            @vcfs=split(/$sep/,$vcfstring);
+            my $pos;
+            foreach $v (@vcfs) {
+                $pos='-1';
+                if( $v=~/$regexp/ ) {                    
+                    $pos=$v;
+                    print "DEBUG POSITION: \$pos=$pos  --> $regexp -->";
+                    eval("\$pos=~ s/$regexp/$replace/");
+                    print "\$pos=$pos \n";
+                }
+                $out .=  "$cmp\t$v\t$pos\n";
+            }
+        }
+    }
+    close(F);
+    #
+    my $out_file="/tmp/samples_vcfcodes.csv";
+    open(F, ">$out_file" );
+    print F $out;
+    close(F);
+    return $out_file;
+}#-----------------------------------
 
 
-sub _row2cmp_vcfstring{  my ($s) =@_; 
+
+sub __row2cmp_vcfstring{  my ($s) =@_; 
     #
     #   -tsv-sample-pos pos: the position in the tsv file of column containing the sample_name (first position is 0).(default=0)
     #   -tsv-mutationslist-find string=(pos|regexp)*: the way to find the list_of_mutation_codes string in tsv file. if string=pos, -tsv-mutationslist-pos must be set.  if string=regexp, -tsv-mutationslist-regexp must be set. (default=regexp)
@@ -226,7 +245,6 @@ sub _row2cmp_vcfstring{  my ($s) =@_;
     #   -tsv-mutation-pos-replace string*:
     #
     if( $_=~ /(SAMPLECODE|TYPE|aaSubstitutions|All\smutations)/ ){return ('','');}
-
     my($cmp,$vcfstring);
     if(                                 $type eq 'gisaid'){
         if($s=~/^(\S+)[^\(]+\((\S+)\)/){
@@ -247,7 +265,7 @@ sub _row2cmp_vcfstring{  my ($s) =@_;
             my $sep=$opt{'tsv-separator'};
             my $spos=$opt{'tsv-sample-pos'};
             my $mpos=$opt{'tsv-mutationslist-pos'};
-            
+
             my @a=split(/$sep/,$s); 
             $cmp=$a[$spos];
             $vcfstring=$a[$mpos];
@@ -263,6 +281,31 @@ sub _row2cmp_vcfstring{  my ($s) =@_;
     return ($cmp,$vcfstring);
 }#-----------------------------------
 
+sub __fileList2Array{ my ($f) =@_;
+    #-----------------------------
+    # __fileList2Array
+    #-----------------------------
+    my @ar;
+    if( $f eq '' ){
+        while(<>){
+            chomp;
+            push(@ar, $_);
+        }
+    }elsif( -e $f ){
+        my $ris='';
+        if( -d $f ){
+            $ris=qx{find $f};
+        }else{
+            $ris=qx{cat $f};
+        }
+        @ar=split(/\n/,$ris);
+	# use Data::Dumper;         print Dumper(\@ar);
+    }else{
+        die("file/dir not present: $f ")
+    }
+
+    return \@ar;
+}#-----------------------------------
 
 #############################################
 #  vcf -> profile
@@ -356,11 +399,25 @@ sub vcf2profile { my ($f)=@_;
 }#-----------------------------------
 
 sub _avoid_mutation_by_pos{ my ($pos)=@_;
-    # TODO: manage -minmax and -minmaxExclude
+    # TODO: manage -minmax and -minmax-exclude
+    if($opt{'minmax-exclude'}){        
+        my @a=split(/,/,$opt{'minmax-exclude'});
+        foreach my $mm (@a){
+            my ($mn,$mx)=split(/-/,$minmax)
+            #if(){            }
+        }
+    }
+    if($opt{'minmax'}){
+        
+    }
     return ''; #false
 }#-----------------------------------
 
+sub __get_minmax{ my ($pos)=@_;
+}#-----------------------------------
 
+sub __check_minmax{ my ($pos)=@_;
+}#-----------------------------------
 
 sub init{
     #--------------------------------------
@@ -396,20 +453,20 @@ sub init{
     #
     # options
     # 
-    init_set_option_defaults();
+    _init_set_option_defaults();
     my $initial_options=  join(' ',@ARGV);
     $initial_options   =~ s/^.*?-/-/;
     ## print "initial_options=$initial_options\n";
     $options=$initial_options;
     while( $options =~ /^\s*-(\S+)\s+(\S+)(.*)$/ ){
-        print "---options=$options\n";
+        #print "---options=$options\n";
         $opt{$1}=$2;
         $options=$3;
     }
     if( $initial_options ne $options){
         print "find options:\n";
         foreach my $k (keys(%opt)){
-
+            print "     -$k=$opt{$k}\n";
             if(   $k eq 'out' ){
                 if($opt{$k} !~ /profile/){
                     print qq{ERR: value "$opt{$k}" not known for option "$k"
@@ -418,7 +475,7 @@ sub init{
                 }
             }
             elsif($k =~ /^(minmax|minmax-exclude)$/ ){
-                if($opt{$k} !~ /^([^:,]+:[^:,]+,?)+$/){
+                if($opt{$k} !~ /^([^-,]+-[^-,]+,?)+$/){
                     print qq{ERR: value "$opt{$k}" not correct for option "$k"
                     example: -minmax 0-1000
                     example: -minmax 0-1000,1200-12111
@@ -442,7 +499,7 @@ sub init{
 }
 
 
-sub init_set_option_defaults {
+sub _init_set_option_defaults {
     $opt{'tsv-separator'}="\t";
     $opt{'tsv-sample-pos'}=0;
     $opt{'tsv-mutationslist-find'}='regexp';
@@ -465,4 +522,107 @@ sub _run{ my ($s) =@_;
     qx{$s};
     print "\nstop: " . qx{date};
 }#-----------------------------------
+
+
+
+<<_________COMMENT_____________;
+
+
+* *-minmax value*: Take mutations with position in the "`value`" interval. Format `value` is `min1:max1,min2:max2`. Example `-minmax 0-100,200-1500,5000-5500`
+* *-minmax-exclude value*: Exlude mutations with position in the "`value`" interval. Format is the same of `-minmax` value
+
+* *-tsv-XXX*: different options for manipulating a tsv file containing at least 2 columns sample_name and list_of_mutation_codes. This options are considered only in case of *type_of_input=tsv*
+  * *-tsv-separator char: the character used as separator on tsv/csv file.(default='\t')
+  * *-tsv-sample-pos pos: the position in the tsv file of column containing the sample_name (first position is 0).(default=0)
+  * *-tsv-mutationslist-find string=(pos|regexp)*: the way to find the list_of_mutation_codes string in tsv file. if string=pos, -tsv-mutationslist-pos must be set.  if string=regexp, -tsv-mutationslist-regexp must be set. (default=regexp)
+  * *-tsv-mutationslist-pos pos*: the position in the tsv file of column containing the list_of_mutation_codes (first position is 0) 
+  * *-tsv-mutationslist-regexp string*: the regular expression used to extract the list_of_mutation_codes string. default="`\((.*)\)`"
+  * *-tsv-mutation-sep char: the character used as separator between mutations on list_of_mutation_codes string. default=','
+  * *-tsv-mutation-pos-regexp string*:  the regular expression used to extract the position of the mutation. default="`^(.*?[_:]?)\w*(\d+)`"
+  * *-tsv-mutation-pos-replace string*: the regular expression used to extract the position of the mutation. default="`$1$2`"
+
+
+
+            if($k =~ /^(minNT|max-nt|min-aa|max-aa)xNT
+           
+                print " -$k=$opt{$k}\t{minNT};{
+                    if($POS ><$k=$o ){return;}
+next }
+            }elsprint " -$k=$opt{$k}\t{maxNT};{
+                    if($POS ><$k=$o ){retur>;}
+next          maxNT
+            }else{
+                print " -$k is not recgnized\n";
+            }
+        }
+    }  
+algn 9
+next 26
+
+
+
+
+
+
+
+
+
+sub _OLD__gisaidMetadata2Codes{ my ($file) =@_; 
+    #-------------------------------------
+    # Produce a tsv of sample\tvcfcode\tpos 
+    # starting from gisaid metadata file format
+    # 
+    # From
+    #   hCoV-19/Tunisia/MHT_2/2020      (N_S202N,NS8_L84S)
+    # to
+    #   hCoV-19/Tunisia/MHT_2/2020      N_S202N     N_S202
+    #   hCoV-19/Tunisia/MHT_2/2020      NS8_L84S    NS8_L84
+    # 
+    #-------------------------------------
+    my $out= "SAMPLECODE\tVCFCODE\tPOS\n";
+    open(F, $file);
+    while(<F>){
+        chomp;
+        #print $_;
+        if($_=~/^(\S+)[^\(]+\((\S+)\)/){
+            $cmp=$1;
+            $vcfstring=$2;
+            #print "$cmp--- $vcfstring\n";
+            @vcfs=split(/,/,$vcfstring);
+            my $pos;
+            foreach $v (@vcfs) {
+                #
+                # pos calculation. compatible codes examples
+                # GISAID: 
+                #   NSP3_I1413L, N_S33del, Spike_ins214EPE  ->  NSP3_1413, N_33, Spike_214
+                # INSA algn2pheno script:
+                #   N:I1413L,    N:S33del, S:ins214EPE      ->  N:1413,    N:33, S:214
+                # NEXTCLADE: 
+                #   I1413L,      S33del,   ins214EPE        ->  1413,      33,   214
+                #   
+                $pos='-1';
+                if( $v=~/^(.*?[_:]?)\w*(\d+)/ ) {
+                    $pos="$1$2";
+                }
+                $out .=  "$cmp\t$v\t$pos\n";
+            }
+        }
+    }
+    close(F);
+    
+    my $out_file="/tmp/samples_vcfcodes.csv";
+    open(F, ">$out_file" );
+    print F $out;
+    close(F);
+    
+    return $out_file;
+}#-----------------------------------
+
+
+
+
+_________COMMENT_____________
+
+
+
 
