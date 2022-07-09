@@ -60,9 +60,10 @@ sub main{
     #
     $f= vcf2profile($f);
 
+
     if($opt{out} eq 'profile'){
         qx{cp $f $out};
-        print "DONE! profile file in $out \n";
+        out( "DONE! profile file in $out \n");
     }else{
         #-----------------------------------
         # grapetree
@@ -70,7 +71,7 @@ sub main{
         ###########profile2ids();
         _run("$grapetreeCommand $f > $out");
         ###########ids2profile();    
-        print "DONE! newick file in $out \n";
+        out( "DONE! newick file in $out \n");
     }
 }#-----------------------------------
 
@@ -134,7 +135,7 @@ sub _vcfListSnippy2Codes{ my ($file) =@_;
     close(F);
     }
     #qx{         _vcfListSnippy2Codes.pl $f > samples_vcfcodes.csv;     };    
-    my $out_file="/tmp/samples_vcfcodes.csv";
+    my $out_file=$opttmpfile{'tmpfile-samples-vcfcodes'}; 
     open(F, ">$out_file" );
     print F $out;
     close(F);    
@@ -186,7 +187,7 @@ sub _gisaidMetadata2Codes{ my ($file) =@_;
     }
     close(F);
     
-    my $out_file="/tmp/samples_vcfcodes.csv";
+    my $out_file=$opttmpfile{'tmpfile-samples-vcfcodes'};
     open(F, ">$out_file" );
     print F $out;
     close(F);
@@ -215,9 +216,9 @@ sub _tsv2Codes{ my ($file) =@_;
                 $pos='-1';
                 if( $v=~/$regexp/ ) {                    
                     $pos=$v;
-                    print "DEBUG POSITION: \$pos=$pos  --> $regexp -->";
+                    _debug( "DEBUG POSITION: \$pos=$pos  --> $regexp -->", 1 );
                     eval("\$pos=~ s/$regexp/$replace/");
-                    print "\$pos=$pos \n";
+                    _debug( "\$pos=$pos \n", 1 );
                 }
                 $out .=  "$cmp\t$v\t$pos\n";
             }
@@ -225,7 +226,7 @@ sub _tsv2Codes{ my ($file) =@_;
     }
     close(F);
     #
-    my $out_file="/tmp/samples_vcfcodes.csv";
+    my $out_file=$opttmpfile{'tmpfile-samples-vcfcodes'};
     open(F, ">$out_file" );
     print F $out;
     close(F);
@@ -315,12 +316,12 @@ sub __fileList2Array{ my ($f) =@_;
 sub vcf2profile { my ($f)=@_;
     #-------------------------------------
     #   Hamming Distance matrix from Samples vcf codes
-    #   usage: 
-    #   vcf2mst.pl samples_vcfcodes.csv > hamming_distance_matrix.tsv
+    #   usa:ge: 
+    #   vcf2m.plst.pl samples_vcfcodes.csv > hamming_distance_matrix.tsv
     #
-    #   print a matrix compatible with grapetree input
+    #   pri ant a matrix compatible with grapetree input
     #-------------------------------------
-    my $out_file="/tmp/hamming_distance_matrix.tsv";
+    my $out_file=$opttmpfile{'tmpfile-samples-profiles'};
 
     my $c={};
     my $codes={};
@@ -419,6 +420,8 @@ sub __get_minmax{ my ($pos)=@_;
 sub __check_minmax{ my ($pos)=@_;
 }#-----------------------------------
 
+
+
 sub init{
     #--------------------------------------
     #   INIT
@@ -428,7 +431,7 @@ sub init{
         exit;          
     }    
     if( $type =~ /^(vcf|gisaid|algn2pheno|nextclade|tsv|code)$/ ){
-        print "MODE: $type \n";
+        _debug( "type_of_input: $type \n");
     }else{
         print "ERROR: MODE NOT RECOGNIZED: $type\n";
         exit;
@@ -436,15 +439,15 @@ sub init{
 
     #$ENV{GRAPETREE_EXEC}='docker run  --mount type=bind,source=/tmp,destination=/tmp --rm quay.io/biocontainers/grapetree:2.1--pyh3252c3a_0 grapetree -p';
 
-    if( ! $ENV{GRAPETREE_EXEC}){
-        print "env GRAPETREE_EXEC is NOT set. grapetree will be used \n";
+    if( ! $ENV{GRAPETREE_EXEC} ){
+        _debug( "env GRAPETREE_EXEC is NOT set. grapetree will be used \n");
         $ENV{GRAPETREE_EXEC}='grapetree -p ';
     }else{
-        print "env GRAPETREE_EXEC is set\n";
+        _debug( "env GRAPETREE_EXEC is set\n");
     }
 
     $grapetreeCommand=$ENV{GRAPETREE_EXEC};
-    print "grapetreeCommand=$grapetreeCommand\n";
+    _debug( "grapetreeCommand=$grapetreeCommand\n");
 
     if( ! $out ) {
         $out='/tmp/mst.nwk';
@@ -464,28 +467,39 @@ sub init{
         $options=$3;
     }
     if( $initial_options ne $options){
-        print "find options:\n";
+        _debug( "find options:\n");
         foreach my $k (keys(%opt)){
-            print "     -$k=$opt{$k}\n";
+            _debug( "     -$k=$opt{$k}\n");
             if(   $k eq 'out' ){
                 if($opt{$k} !~ /profile/){
-                    print qq{ERR: value "$opt{$k}" not known for option "$k"
-                    example: -out profile\n};
+                    _debug( qq{ERR: value "$opt{$k}" not known for option "$k"
+                    example: -out profile\n});
                     exit;
                 }
             }
             elsif($k =~ /^(minmax|minmax-exclude)$/ ){
                 if($opt{$k} !~ /^([^-,]+-[^-,]+,?)+$/){
-                    print qq{ERR: value "$opt{$k}" not correct for option "$k"
+                    _debug( qq{ERR: value "$opt{$k}" not correct for option "$k"
                     example: -minmax 0-1000
                     example: -minmax 0-1000,1200-12111
-                    \n};
+                    \n});
                     exit;
                 }
             }
             elsif($k =~ /^(tsv-separator|tsv-sample-pos|tsv-mutationslist-find|tsv-mutationslist-pos|tsv-mutationslist-regexp|tsv-mutation-sep|tsv-mutation-pos-regexp|tsv-mutation-pos-replace)$/){
                 #ok
-            }else{
+            }
+            elsif($k =~ /^debug$/){
+                if($opt{$k} !~ /^\d+$/ ){
+                    print qq{ERR: An integer (debug level) must specified for option "$k". Value "$opt{$k}" is not correct 
+                    example: -debug 1
+                    \n};
+                    exit;
+                }
+                #ok
+            }
+            elsif($k =~ /^(tsv-separator|tsv-sample-pos|tsv-mutationslist-find|tsv-mutationslist-pos|tsv-mutationslist-regexp|tsv-mutation-sep|tsv-mutation-pos-regexp|tsv-mutation-pos-replace)$/){
+                #ok
                 print qq{ERR: option "$k" not recognized \n};
                 exit;
             }
@@ -508,7 +522,26 @@ sub _init_set_option_defaults {
     $opt{'tsv-mutation-sep'}=',';
     $opt{'tsv-mutation-pos-regexp'} ='^(.*?[_:]?)\w*(\d+)';
     $opt{'tsv-mutation-pos-replace'}='$1$2';
+    $opt{'debug'}=0;
+    
+
+    my $t=time;
+    $opttmpfile{'tmpfile-samples-vcfcodes'}="/tmp/samples-vcfcodes-$t.tsv";
+    $opttmpfile{'tmpfile-samples-profiles'}="/tmp/samples-profiles-$t.tsv"; #ex /tmp/hamming_distance_matrix
+    #$opttmpfile{'tmpfile-outfile'}='/tmp/mst.nwk';
 };
+
+
+sub out{ my ($s) =@_;    
+    #--------------------------------------
+    #   OUT
+    #--------------------------------------
+    print "tmp files in  \n";
+    foreach my $k (keys(%opttmpfile)){
+        print "  $opttmpfile{$k}\n";
+    }
+    print $s;
+}
 
 #-----------------------------------
 # BASIC UTILS
@@ -523,104 +556,26 @@ sub _run{ my ($s) =@_;
     print "\nstop: " . qx{date};
 }#-----------------------------------
 
-
-
-<<_________COMMENT_____________;
-
-
-* *-minmax value*: Take mutations with position in the "`value`" interval. Format `value` is `min1:max1,min2:max2`. Example `-minmax 0-100,200-1500,5000-5500`
-* *-minmax-exclude value*: Exlude mutations with position in the "`value`" interval. Format is the same of `-minmax` value
-
-* *-tsv-XXX*: different options for manipulating a tsv file containing at least 2 columns sample_name and list_of_mutation_codes. This options are considered only in case of *type_of_input=tsv*
-  * *-tsv-separator char: the character used as separator on tsv/csv file.(default='\t')
-  * *-tsv-sample-pos pos: the position in the tsv file of column containing the sample_name (first position is 0).(default=0)
-  * *-tsv-mutationslist-find string=(pos|regexp)*: the way to find the list_of_mutation_codes string in tsv file. if string=pos, -tsv-mutationslist-pos must be set.  if string=regexp, -tsv-mutationslist-regexp must be set. (default=regexp)
-  * *-tsv-mutationslist-pos pos*: the position in the tsv file of column containing the list_of_mutation_codes (first position is 0) 
-  * *-tsv-mutationslist-regexp string*: the regular expression used to extract the list_of_mutation_codes string. default="`\((.*)\)`"
-  * *-tsv-mutation-sep char: the character used as separator between mutations on list_of_mutation_codes string. default=','
-  * *-tsv-mutation-pos-regexp string*:  the regular expression used to extract the position of the mutation. default="`^(.*?[_:]?)\w*(\d+)`"
-  * *-tsv-mutation-pos-replace string*: the regular expression used to extract the position of the mutation. default="`$1$2`"
-
-
-
-            if($k =~ /^(minNT|max-nt|min-aa|max-aa)xNT
-           
-                print " -$k=$opt{$k}\t{minNT};{
-                    if($POS ><$k=$o ){return;}
-next }
-            }elsprint " -$k=$opt{$k}\t{maxNT};{
-                    if($POS ><$k=$o ){retur>;}
-next          maxNT
-            }else{
-                print " -$k is not recgnized\n";
-            }
-        }
-    }  
-algn 9
-next 26
-
-
-
-
-
-
-
-
-
-sub _OLD__gisaidMetadata2Codes{ my ($file) =@_; 
-    #-------------------------------------
-    # Produce a tsv of sample\tvcfcode\tpos 
-    # starting from gisaid metadata file format
-    # 
-    # From
-    #   hCoV-19/Tunisia/MHT_2/2020      (N_S202N,NS8_L84S)
-    # to
-    #   hCoV-19/Tunisia/MHT_2/2020      N_S202N     N_S202
-    #   hCoV-19/Tunisia/MHT_2/2020      NS8_L84S    NS8_L84
-    # 
-    #-------------------------------------
-    my $out= "SAMPLECODE\tVCFCODE\tPOS\n";
-    open(F, $file);
-    while(<F>){
-        chomp;
-        #print $_;
-        if($_=~/^(\S+)[^\(]+\((\S+)\)/){
-            $cmp=$1;
-            $vcfstring=$2;
-            #print "$cmp--- $vcfstring\n";
-            @vcfs=split(/,/,$vcfstring);
-            my $pos;
-            foreach $v (@vcfs) {
-                #
-                # pos calculation. compatible codes examples
-                # GISAID: 
-                #   NSP3_I1413L, N_S33del, Spike_ins214EPE  ->  NSP3_1413, N_33, Spike_214
-                # INSA algn2pheno script:
-                #   N:I1413L,    N:S33del, S:ins214EPE      ->  N:1413,    N:33, S:214
-                # NEXTCLADE: 
-                #   I1413L,      S33del,   ins214EPE        ->  1413,      33,   214
-                #   
-                $pos='-1';
-                if( $v=~/^(.*?[_:]?)\w*(\d+)/ ) {
-                    $pos="$1$2";
-                }
-                $out .=  "$cmp\t$v\t$pos\n";
-            }
-        }
+sub _debug{ my ($s, $level) =@_;    
+    #
+    #   print string if debug is on (option -debug on)
+    #
+    if( !$level ){$level=0;}
+    my $debug_level=$opt{debug};
+    if( $level < $opt{debug}){
+        print "$s";
     }
-    close(F);
-    
-    my $out_file="/tmp/samples_vcfcodes.csv";
-    open(F, ">$out_file" );
-    print F $out;
-    close(F);
-    
-    return $out_file;
 }#-----------------------------------
 
 
 
+<<_________COMMENT_____________;
 
+/tmp/samples_vcfcod
+/tmpes
+/tmp/hamming_distance_matr
+/tmpix
+/tmp/m.nwkst.nwk
 _________COMMENT_____________
 
 

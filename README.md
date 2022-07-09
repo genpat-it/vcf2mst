@@ -80,6 +80,7 @@ vcf2mst.pl input_tsv_file out_file type_of_input [options]
   * *-tsv-mutation-sep char: the character used as separator between mutations on list_of_mutation_codes string. default=','
   * *-tsv-mutation-pos-regexp string*:  the regular expression used to extract the position of the mutation. default="`^(.*?[_:]?)\w*(\d+)`"
   * *-tsv-mutation-pos-replace string*: the regular expression used to extract the position of the mutation. default="`$1$2`"
+* *-debug value*: activate debug with debug_level=*value*. debug is off otherwise (ex: -debug 2)
 
 ## From snippy format vcf files 
 
