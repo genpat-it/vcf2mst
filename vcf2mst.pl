@@ -400,24 +400,51 @@ sub vcf2profile { my ($f)=@_;
 }#-----------------------------------
 
 sub _avoid_mutation_by_pos{ my ($pos)=@_;
+    #
     # TODO: manage -minmax and -minmax-exclude
-    if($opt{'minmax-exclude'}){        
-        my @a=split(/,/,$opt{'minmax-exclude'});
-        foreach my $mm (@a){
-            my ($mn,$mx)=split(/-/,$minmax)
-            #if(){            }
+    #
+    if($opt{'minmax-exclude'}){
+        if(!$hs_minmax_exlude){
+            my $hs_minmax_exlude=__get_minmax($opt{'minmax-exclude'});
+        }
+        if(__check_minmax($pos,$hs_minmax_exlude)){
+            return 1; #exclude
         }
     }
-    if($opt{'minmax'}){
-        
+    elsif($opt{'minmax'}){
+        if(!$hs_minmax_include){
+            my $hs_minmax_include=__get_minmax($opt{'minmax'});
+        }
+        if(__check_minmax($pos,$hs_minmax_include)){
+            return 0; #include
+        }
+    }else{
+        return 0; #include
     }
-    return ''; #false
 }#-----------------------------------
 
-sub __get_minmax{ my ($pos)=@_;
+sub __get_minmax{ my ($minmax_list_string)=@_;
+    my @ar_minmax_list_string=split(/,/,$minmax_list_string);
+    my $hs_out={};
+    foreach my $mm (@ar_minmax_list_string){
+        my ($min,$max)=split(/-/,$mm);
+        $hs_out->{$mm}={
+            min => $min, max => $max 
+        }
+    }
+    return $hs_out;
 }#-----------------------------------
 
-sub __check_minmax{ my ($pos)=@_;
+sub __check_minmax{ my ($pos, $hs)=@_;
+    foreach my $h (values(%{$hs})){
+        if( 
+            $pos >= $h->{min} && 
+            $pos <= $h->{max}
+        ){
+            return 1 # included in the interval
+        }
+    }
+    return '';
 }#-----------------------------------
 
 
