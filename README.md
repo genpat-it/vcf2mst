@@ -81,6 +81,7 @@ vcf2mst.pl input_tsv_file out_file type_of_input [options]
   * *-tsv-mutation-pos-regexp string*:  the regular expression used to extract the position of the mutation. default="`^(.*?[_:]?)\w*(\d+)`"
   * *-tsv-mutation-pos-replace string*: the regular expression used to extract the position of the mutation. default="`$1$2`"
 * *-debug value*: activate debug with debug_level=*value*. debug is off otherwise (ex: -debug 2)
+* *-grapetree-bin string*: string is the grapetree command line. default is `grapetree -p `. An example of docker command is: `docker run  --mount type=bind,source=/tmp,destination=/tmp --rm quay.io/biocontainers/grapetree:2.1--pyh3252c3a_0 grapetree -p`
 
 ## From snippy format vcf files 
 
@@ -136,14 +137,20 @@ The VCFCODE in samples_vcfcodes.tsv might be:
 
 ## Options
 
+**Example of minmax,debug,tsv options**
 
+`perl vcf2mst.pl examples/nextclade_example.tsv profile.tsv tsv -out profile -tsv-sample-pos 0 -tsv-mutationslist-find pos -tsv-mutationslist-pos 15 -tsv-mutation-pos-regexp '\w(\d+)\w' -debug 1 -minmax 9000-10000 -minmax-exclude 9534-9534`
 
 ## GrapeTree command
 
+
 In case the vcf2mst is installed locally and the docker version it is not used, there are different way to launch the required `grapetree` tool.
+
 The environment variable GRAPETREE_EXEC can be used for different needs. 
 In case there a local installation of grapetree is used, GRAPETREE_EXEC can be set like  `export GRAPETREE_EXEC=grapetree`  (this is the default)
 In case there a docker installation of grapetree is used, GRAPETREE_EXEC can be set like  `export GRAPETREE_EXEC=docker run  --mount type=bind,source=/tmp,destination=/tmp --rm quay.io/biocontainers/grapetree:2.1--pyh3252c3a_0 grapetree -p`  
 
-change the examples according to your specific installation and docker image
+Grapetree can be also set with `-grapetree-bin` options.
+
+Change the examples according to your specific installation and docker image
 

@@ -405,22 +405,23 @@ sub _avoid_mutation_by_pos{ my ($pos)=@_;
     #
     if($opt{'minmax-exclude'}){
         if(!$hs_minmax_exlude){
-            my $hs_minmax_exlude=__get_minmax($opt{'minmax-exclude'});
+            $hs_minmax_exlude=__get_minmax($opt{'minmax-exclude'});
         }
         if(__check_minmax($pos,$hs_minmax_exlude)){
             return 1; #exclude
         }
     }
-    elsif($opt{'minmax'}){
+    if($opt{'minmax'}){
         if(!$hs_minmax_include){
-            my $hs_minmax_include=__get_minmax($opt{'minmax'});
+            $hs_minmax_include=__get_minmax($opt{'minmax'});
         }
         if(__check_minmax($pos,$hs_minmax_include)){
-            return 0; #include
+            return 0; #not include
+        }else{
+            return 1;
         }
-    }else{
-        return 0; #include
     }
+    return 0; #include
 }#-----------------------------------
 
 sub __get_minmax{ my ($minmax_list_string)=@_;
@@ -432,61 +433,57 @@ sub __get_minmax{ my ($minmax_list_string)=@_;
             min => $min, max => $max 
         }
     }
+    #use Data::Dumper;print Dumper($hs_out);    
     return $hs_out;
 }#-----------------------------------
 
 sub __check_minmax{ my ($pos, $hs)=@_;
+    use Data::Dumper;
+#print Dumper($hs);  
     foreach my $h (values(%{$hs})){
         if( 
             $pos >= $h->{min} && 
             $pos <= $h->{max}
         ){
+            _debug( "DEBUG(l2) pos=$pos in interval[$h->{min},$h->{max}]\n",2);
             return 1 # included in the interval
         }
     }
     return '';
 }#-----------------------------------
 
-
-
 sub init{
     #--------------------------------------
     #   INIT
     #--------------------------------------
+    #
+    # input filename
+    # 
     if( ! $f ){
         print $presentation;
         exit;          
     }    
+    #
+    # type_of_input
+    # 
     if( $type =~ /^(vcf|gisaid|algn2pheno|nextclade|tsv|code)$/ ){
         _debug( "type_of_input: $type \n");
     }else{
         print "ERROR: MODE NOT RECOGNIZED: $type\n";
         exit;
     }
-
-    #$ENV{GRAPETREE_EXEC}='docker run  --mount type=bind,source=/tmp,destination=/tmp --rm quay.io/biocontainers/grapetree:2.1--pyh3252c3a_0 grapetree -p';
-
-    if( ! $ENV{GRAPETREE_EXEC} ){
-        _debug( "env GRAPETREE_EXEC is NOT set. grapetree will be used \n");
-        $ENV{GRAPETREE_EXEC}='grapetree -p ';
-    }else{
-        _debug( "env GRAPETREE_EXEC is set\n");
-    }
-
-    $grapetreeCommand=$ENV{GRAPETREE_EXEC};
-    _debug( "grapetreeCommand=$grapetreeCommand\n");
-
+    #
+    # output filename
+    # 
     if( ! $out ) {
         $out='/tmp/mst.nwk';
-    };
-
+    }
     #
     # options
     # 
     _init_set_option_defaults();
     my $initial_options=  join(' ',@ARGV);
-    $initial_options   =~ s/^.*?-/-/;
-    ## print "initial_options=$initial_options\n";
+    $initial_options   =~ s/^.*?-/-/;    
     $options=$initial_options;
     while( $options =~ /^\s*-(\S+)\s+(\S+)(.*)$/ ){
         #print "---options=$options\n";
@@ -514,7 +511,7 @@ sub init{
                 }
             }
             elsif($k =~ /^(tsv-separator|tsv-sample-pos|tsv-mutationslist-find|tsv-mutationslist-pos|tsv-mutationslist-regexp|tsv-mutation-sep|tsv-mutation-pos-regexp|tsv-mutation-pos-replace)$/){
-                #ok
+                #ok tsv options
             }
             elsif($k =~ /^debug$/){
                 if($opt{$k} !~ /^\d+$/ ){
@@ -523,24 +520,46 @@ sub init{
                     \n};
                     exit;
                 }
-                #ok
             }
-            elsif($k =~ /^(tsv-separator|tsv-sample-pos|tsv-mutationslist-find|tsv-mutationslist-pos|tsv-mutationslist-regexp|tsv-mutation-sep|tsv-mutation-pos-regexp|tsv-mutation-pos-replace)$/){
-                #ok
-                print qq{ERR: option "$k" not recognized \n};
-                exit;
+            elsif($k =~ /^grapetree-bin$/){
+                #ok                
             }
         }
     }
-   
     if($options && ($options ne $initial_options)){
         print "options not recognized\n$options\n";
         exit;
     }
-}
+    #
+    # grapetree-bin
+    # 
+    $grapetreeCommand=_init_grapetree();
+}#-----------------------------------
 
+sub _init_grapetree {
+    #
+    # set grapetree bin 
+    # based on -out options and GRAPETREE_EXEC env variable
+    # example of $ENV{GRAPETREE_EXEC}='docker run  --mount type=bind,source=/tmp,destination=/tmp --rm quay.io/biocontainers/grapetree:2.1--pyh3252c3a_0 grapetree -p';
+    # 
+    if($opt{out} eq 'profile'){
+        _debug( "_init_grapetree: no need of grapetree for options -out profile \n");
+        return '';
+        # no need of grapetree for options -out profile
+    }
+    if( ! $ENV{GRAPETREE_EXEC} ){
+        _debug( "_init_grapetree: env GRAPETREE_EXEC is NOT set. grapetree will be used \n");
+        return $opt{'grapetree-bin'};
+    }else{
+        _debug( "_init_grapetree: env GRAPETREE_EXEC is set: '$ENV{GRAPETREE_EXEC}'\n");
+        return $ENV{GRAPETREE_EXEC};
+    }
+}#-----------------------------------
 
 sub _init_set_option_defaults {
+    #
+    # tsv options
+    # 
     $opt{'tsv-separator'}="\t";
     $opt{'tsv-sample-pos'}=0;
     $opt{'tsv-mutationslist-find'}='regexp';
@@ -549,26 +568,33 @@ sub _init_set_option_defaults {
     $opt{'tsv-mutation-sep'}=',';
     $opt{'tsv-mutation-pos-regexp'} ='^(.*?[_:]?)\w*(\d+)';
     $opt{'tsv-mutation-pos-replace'}='$1$2';
+    #
     $opt{'debug'}=0;
-    
-
+    #
+    # grapetree bin
+    #
+    $opt{'grapetree-bin'}='grapetree -p ';
+    #
+    # tmpfiles
+    #
     my $t=time;
     $opttmpfile{'tmpfile-samples-vcfcodes'}="/tmp/samples-vcfcodes-$t.tsv";
     $opttmpfile{'tmpfile-samples-profiles'}="/tmp/samples-profiles-$t.tsv"; #ex /tmp/hamming_distance_matrix
-    #$opttmpfile{'tmpfile-outfile'}='/tmp/mst.nwk';
-};
+}#-----------------------------------
 
 
+
+#-----------------------------------
+# OUT
+#-----------------------------------
 sub out{ my ($s) =@_;    
-    #--------------------------------------
-    #   OUT
-    #--------------------------------------
     print "tmp files in  \n";
     foreach my $k (keys(%opttmpfile)){
         print "  $opttmpfile{$k}\n";
     }
     print $s;
-}
+}#-----------------------------------
+
 
 #-----------------------------------
 # BASIC UTILS
