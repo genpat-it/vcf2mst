@@ -33,8 +33,13 @@ vcf2mst.pl samples_vcfcodes.tsv      mst.nwk code
 # profile file only. return a matrix compatible with grapetree input
 vcf2mst.pl list_of_vcfiles      profile.tsv vcf    -out profile 
 
-# usage 5: filter positions
-vcf2mst.pl list_of_vcfiles      profile.tsv vcf    -minmax 10-10000
+# filter positions
+vcf2mst.pl list_of_vcfiles      profile.tsv vcf    -minmax-include 10-10000
+vcf2mst.pl list_of_vcfiles      profile.tsv vcf    -minmax-exclude 10-10000
+
+# filter positions from file
+vcf2mst.pl list_of_vcfiles      profile.tsv vcf    -minmax-exclude-file intervals-file-name 10-10000
+
 ```
 
 For additional info visit 
@@ -110,7 +115,8 @@ sub _vcfListSnippy2Codes{ my ($file) =@_;
         $cmp=~ s/^.*\///; # change the name of sample removing directories
         open(F, $f);
         while(<F>){
-            chomp;
+            _chomp();
+            $_ =~ s/\r//g; 
             if( $_ =~ /^#/){next;}
             my $r=$_;
             # split. fields from snippy            
@@ -158,8 +164,7 @@ sub _gisaidMetadata2Codes{ my ($file) =@_;
     my $out= "SAMPLECODE\tVCFCODE\tPOS\n";
     open(F, $file);
     while(<F>){
-        chomp;
-        #print $_;
+        _chomp();        
         ($cmp,$vcfstring)=   __row2cmp_vcfstring($_);
         # if($_=~/^(\S+)[^\(]+\((\S+)\)/){
         if($cmp){
@@ -180,8 +185,12 @@ sub _gisaidMetadata2Codes{ my ($file) =@_;
                 if( $v=~/^\s*([^_:]*[_:]?)(\w*\d+)/ ) {
                     $pos="$1$2";
                 }
-                #### print "$cmp\t$v\t$pos\n";
-                $out .=  "$cmp\t$v\t$pos\n";
+                if( $pos > 0 ){
+                    $out .=  "$cmp\t$v\t$pos\n";
+                }else{
+                    _debug( "WARNING: row excluded in _gisaidMetadata2Codes '$_' (Not a valid position \$pos=$pos) \n" );
+                }
+                
             }
         }
     }
@@ -204,7 +213,7 @@ sub _tsv2Codes{ my ($file) =@_;
     my $out= "SAMPLECODE\tVCFCODE\tPOS\n";
     open(F, $file);
     while(<F>){
-        chomp;
+        _chomp();
         ($cmp,$vcfstring)=   __row2cmp_vcfstring($_);
         if($cmp){
             my $sep    =$opt{'tsv-mutation-sep'};
@@ -214,13 +223,18 @@ sub _tsv2Codes{ my ($file) =@_;
             my $pos;
             foreach $v (@vcfs) {
                 $pos='-1';
+                $v =~ s/\r//g; # Veronica update
                 if( $v=~/$regexp/ ) {                    
                     $pos=$v;
-                    _debug( "DEBUG POSITION: \$pos=$pos  --> $regexp -->", 1 );
+                    _debug( "DEBUG POSITION: \$pos=$pos  --> $regexp -->", 5 );
                     eval("\$pos=~ s/$regexp/$replace/");
-                    _debug( "\$pos=$pos \n", 1 );
+                    _debug( "\$pos=$pos \n", 2 );
                 }
-                $out .=  "$cmp\t$v\t$pos\n";
+                if( $pos > 0 ){
+                    $out .=  "$cmp\t$v\t$pos\n";
+                }else{
+                    _debug( "WARNING: row excluded in _tsv2Codes '$_' (Not a valid position \$pos=$pos) \n" );
+                }
             }
         }
     }
@@ -245,7 +259,7 @@ sub __row2cmp_vcfstring{  my ($s) =@_;
     #   -tsv-mutation-pos-regexp string*:  the regular expression used to extract the position of the mutation. default="`^(.*?[_:]?)\w*(\d+)`"
     #   -tsv-mutation-pos-replace string*:
     #
-    if( $_=~ /(SAMPLECODE|TYPE|aaSubstitutions|All\smutations)/ ){return ('','');}
+    if( $_=~ /(SAMPLECODE|TYPE|aaSubstitutions|substitutions|All\smutations)/ ){return ('','');} 
     my($cmp,$vcfstring);
     if(                                 $type eq 'gisaid'){
         if($s=~/^(\S+)[^\(]+\((\S+)\)/){
@@ -289,7 +303,7 @@ sub __fileList2Array{ my ($f) =@_;
     my @ar;
     if( $f eq '' ){
         while(<>){
-            chomp;
+            _chomp();
             push(@ar, $_);
         }
     }elsif( -e $f ){
@@ -329,7 +343,8 @@ sub vcf2profile { my ($f)=@_;
 
     open(F, $f);
     while(<F>){
-        chomp;
+        _chomp();
+        $_ =~ s/\r//g; 
         # check headers
         if( $_=~ /(SAMPLECODE|TYPE)/ ){next;}
         #
@@ -340,7 +355,7 @@ sub vcf2profile { my ($f)=@_;
         
         if( $VCFCODE eq ''){
             ($SAMPLECODE,$VCFCODE,$POS) =   split(/,/,$_);
-        }        
+        }
         if( ! exists($c->{$SAMPLECODE})){
             $c->{$SAMPLECODE}={};
         }
@@ -348,6 +363,7 @@ sub vcf2profile { my ($f)=@_;
         # filter mutation  based on position 
         #
         if( _avoid_mutation_by_pos($POS) ){
+            _debug("excluded: $SAMPLECODE,$VCFCODE,$POS\n",2);
             next;
         }
         # 
@@ -362,7 +378,7 @@ sub vcf2profile { my ($f)=@_;
 
             $codes->{$POS}->{$VCFCODE}=$allele_code;
             $max->{$POS}              =$allele_code;
-        }        
+        }
         $c->{$SAMPLECODE}->{$POS} = $codes->{$POS}->{$VCFCODE};
     }
     close(F);
@@ -373,20 +389,20 @@ sub vcf2profile { my ($f)=@_;
     #
     # Header
     #
-    $out .= "#FILE\t";
-    foreach $cod (sort(keys(%$codes))){    $out .= "$cod\t";}
+    $out .= "#FILE";
+    foreach $cod (sort(keys(%$codes))){    $out .= "\t$cod";}
     $out .= "\n";
     #
     # "allele" codes
     #
     foreach $cmp (sort(keys(%$c))){
-        $out .= "$cmp\t";
+        $out .= "$cmp";
         foreach $cod (sort(keys(%$codes))){
             my $allele=$c->{$cmp}->{$cod};
             my $val=( $allele )?
                                 $allele + 1 :
                                 1;
-            $out .= "$val\t";
+            $out .= "\t$val";
         }
         $out .= "\n";
     }
@@ -401,56 +417,41 @@ sub vcf2profile { my ($f)=@_;
 
 sub _avoid_mutation_by_pos{ my ($pos)=@_;
     #
-    # TODO: manage -minmax and -minmax-exclude
-    #
-    if($opt{'minmax-exclude'}){
-        if(!$hs_minmax_exlude){
-            $hs_minmax_exlude=__get_minmax($opt{'minmax-exclude'});
-        }
-        if(__check_minmax($pos,$hs_minmax_exlude)){
-            return 1; #exclude
+    # TODO: manage -minmax-include and -minmax-exclude
+    #    
+    if(_containsElements($hs_minmax_exclude)){
+        if(__check_minmax($pos,$hs_minmax_exclude)){
+            _debug( "$pos excluded\n",3);
+            return 1;                                   #1 avoid=exclude
         }
     }
-    if($opt{'minmax'}){
-        if(!$hs_minmax_include){
-            $hs_minmax_include=__get_minmax($opt{'minmax'});
-        }
+    if(_containsElements($hs_minmax_include)){
         if(__check_minmax($pos,$hs_minmax_include)){
-            return 0; #not include
+            _debug( "$pos included\n",1);
+            return 0;                                   #0 not avoid=include
         }else{
-            return 1;
+            _debug( "$pos excluded\n",1);
+            return 1;                                   #avoid=exclude
         }
     }
-    return 0; #include
-}#-----------------------------------
-
-sub __get_minmax{ my ($minmax_list_string)=@_;
-    my @ar_minmax_list_string=split(/,/,$minmax_list_string);
-    my $hs_out={};
-    foreach my $mm (@ar_minmax_list_string){
-        my ($min,$max)=split(/-/,$mm);
-        $hs_out->{$mm}={
-            min => $min, max => $max 
-        }
-    }
-    #use Data::Dumper;print Dumper($hs_out);    
-    return $hs_out;
+    return 0; #not avoid=include
 }#-----------------------------------
 
 sub __check_minmax{ my ($pos, $hs)=@_;
-    use Data::Dumper;
-#print Dumper($hs);  
+    #use Data::Dumper; print Dumper($hs);  
     foreach my $h (values(%{$hs})){
         if( 
             $pos >= $h->{min} && 
             $pos <= $h->{max}
         ){
-            _debug( "DEBUG(l2) pos=$pos in interval[$h->{min},$h->{max}]\n",2);
+            _debug( "DEBUG(l3) pos=$pos in interval[$h->{min},$h->{max}]. ",5);
             return 1 # included in the interval
         }
     }
     return '';
 }#-----------------------------------
+
+
 
 sub init{
     #--------------------------------------
@@ -500,28 +501,40 @@ sub init{
                     example: -out profile\n});
                     exit;
                 }
-            }
-            elsif($k =~ /^(minmax|minmax-exclude)$/ ){
-                if($opt{$k} !~ /^([^-,]+-[^-,]+,?)+$/){
+            }elsif($k =~ /^(minmax-include|minmax-exclude)$/ ){
+                if($opt{$k} !~ /^([^-]+-[^-]+,?)+$/){
                     _debug( qq{ERR: value "$opt{$k}" not correct for option "$k"
-                    example: -minmax 0-1000
-                    example: -minmax 0-1000,1200-12111
+                    example: -minmax-include 0-1000
+                    example: -minmax-exclude 0-1000,1200-12111
                     \n});
                     exit;
                 }
-            }
-            elsif($k =~ /^(tsv-separator|tsv-sample-pos|tsv-mutationslist-find|tsv-mutationslist-pos|tsv-mutationslist-regexp|tsv-mutation-sep|tsv-mutation-pos-regexp|tsv-mutation-pos-replace)$/){
+                # check for wrong use minmax while the idea was to use file-minmax
+                if(-e $opt{$k} ){
+                    _debug( qq{ERR: value "$opt{$k}" is a filename. not correct for option "$k"
+                    Did you intend to use -file-$k ?
+                    \n});
+                    exit;
+                }
+            }elsif($k =~ /^(file-minmax-include|file-minmax-exclude)$/ ){
+                my $file=$opt{$k};
+                if(! -e $opt{$k} ){
+                    _debug( qq{ERR: "$opt{$k}" is not a file. option "$k"
+                    example: -file-minmax-include           file_of_intervals
+                    example: -file-minmax-exclude   file_of_intervals
+                    \n});
+                    exit;
+                }
+            }elsif($k =~ /^(tsv-separator|tsv-sample-pos|tsv-mutationslist-find|tsv-mutationslist-pos|tsv-mutationslist-regexp|tsv-mutation-sep|tsv-mutation-pos-regexp|tsv-mutation-pos-replace)$/){
                 #ok tsv options
-            }
-            elsif($k =~ /^debug$/){
+            }elsif($k =~ /^debug$/){
                 if($opt{$k} !~ /^\d+$/ ){
                     print qq{ERR: An integer (debug level) must specified for option "$k". Value "$opt{$k}" is not correct 
                     example: -debug 1
                     \n};
                     exit;
                 }
-            }
-            elsif($k =~ /^grapetree-bin$/){
+            }elsif($k =~ /^grapetree-bin$/){
                 #ok                
             }
         }
@@ -531,9 +544,74 @@ sub init{
         exit;
     }
     #
+    #
+    #
+    _init_include_exclude_pos();    
+    #
     # grapetree-bin
     # 
     $grapetreeCommand=_init_grapetree();
+}#-----------------------------------
+
+
+sub _init_include_exclude_pos {
+    #
+    # 
+    #
+    $hs_minmax_include=__read_include_exclude_pos('file-minmax-include','minmax-include');
+    $hs_minmax_exclude=__read_include_exclude_pos('file-minmax-exclude','minmax-exclude');
+    
+    _debug( 'DEBUG list minmax_include='.join(',',keys(%{$hs_minmax_include})) . "\n", 1);
+    _debug( 'DEBUG list minmax_exclude='.join(',',keys(%{$hs_minmax_exclude})) . "\n", 1);
+    
+}#-----------------------------------
+
+sub __read_include_exclude_pos{ my ($f,$s)=@_; 
+    # f= file-minmax-include or file-minmax-exclude
+    # s= minmax-include      or minmax-exclude
+    # 1. read from file (file-minmax-xx). 
+    # 2. add to string (minmax-xx)
+    # 3. create hash of intervals
+    if($opt{$f}){
+        open(F,$opt{$f});
+        my $strFromFile='';
+        while(<F>){
+            _chomp();
+            $_ =~ s/\r//g; 
+            # empty or a line commented (#)
+            if( $_ =~/^\s*#/ || $_ =~ /^\s*$/ ) { next; }
+            #remove spaces
+            $_ =~ s/[\s\t\r\n]+//g;
+            #add with comma
+            $strFromFile.= "$_,";
+        }
+        close(F);
+        if( $strFromFile  ){
+            $opt{$s} = ( $opt{$s} )? 
+                        "$opt{$s},$strFromFile" : 
+                        $strFromFile;
+        }
+    }
+    if($opt{$s}){
+        return __get_minmax($opt{$s});
+    }    
+    return {};
+}#-----------------------------------
+
+sub __get_minmax{ my ($minmax_list_string)=@_;
+    my @ar_minmax_list_string=split(/,/,$minmax_list_string);
+    my $hs_out={};
+    foreach my $mm (@ar_minmax_list_string){
+        if($mm =~ /^\s*$/){next;}
+        my ($min,$max)=split(/-/,$mm);
+        $min =~ s/[\s\t\r\n]*//g;
+        $max =~ s/[\s\t\r\n]*//g;
+        $hs_out->{$mm}={
+            min => $min, max => $max 
+        };
+    }
+    #use Data::Dumper;print Dumper($hs_out);    
+    return $hs_out;
 }#-----------------------------------
 
 sub _init_grapetree {
@@ -559,7 +637,7 @@ sub _init_grapetree {
 sub _init_set_option_defaults {
     #
     # tsv options
-    # 
+    #
     $opt{'tsv-separator'}="\t";
     $opt{'tsv-sample-pos'}=0;
     $opt{'tsv-mutationslist-find'}='regexp';
@@ -578,8 +656,13 @@ sub _init_set_option_defaults {
     # tmpfiles
     #
     my $t=time;
-    $opttmpfile{'tmpfile-samples-vcfcodes'}="/tmp/samples-vcfcodes-$t.tsv";
-    $opttmpfile{'tmpfile-samples-profiles'}="/tmp/samples-profiles-$t.tsv"; #ex /tmp/hamming_distance_matrix
+    my $name='tmpfile-samples-vcfcodes';
+    $opttmpfile    {$name}="/tmp/samples-vcfcodes-$t.tsv";
+    $opttmpfileDesc{$name}='full list of recognized mutation codes (not filtered by position)';
+    #
+    my $name='tmpfile-samples-profiles';
+    $opttmpfile    {$name}="/tmp/samples-profiles-$t.tsv"; #ex /tmp/hamming_distance_matrix
+    $opttmpfileDesc{$name}='mutations codes in profile format (possibly filtered by position)'
 }#-----------------------------------
 
 
@@ -590,7 +673,7 @@ sub _init_set_option_defaults {
 sub out{ my ($s) =@_;    
     print "tmp files in  \n";
     foreach my $k (keys(%opttmpfile)){
-        print "  $opttmpfile{$k}\n";
+        print "  $opttmpfile{$k} : $opttmpfileDesc{$k}\n";
     }
     print $s;
 }#-----------------------------------
@@ -618,6 +701,21 @@ sub _debug{ my ($s, $level) =@_;
     if( $level < $opt{debug}){
         print "$s";
     }
+}#-----------------------------------
+
+sub _chomp{
+    #
+    #   remove \r and \n from $_ (base chomp statement remove just \n)
+    #
+    chomp;
+    $_ =~ s/\r//g; 
+}#-----------------------------------
+
+sub _containsElements{my ($s) =@_;    
+    #
+    #   return true if the reference to hash is not empty
+    #
+    return %{$s};
 }#-----------------------------------
 
 
