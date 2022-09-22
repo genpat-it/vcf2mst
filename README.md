@@ -32,7 +32,7 @@ vcf2mst.pl samples_vcfcodes.tsv      mst.nwk code
 vcf2mst.pl list_of_vcfiles      profile.tsv vcf    -out profile 
 
 # usage 5: filter positions
-vcf2mst.pl list_of_vcfiles      mst.tsv     vcf    -minmax 10-10000
+vcf2mst.pl list_of_vcfiles      mst.tsv     vcf    -minmax-include 10-10000
 ```
 
 See `examples` folder for the different file formats. See section **Usage** for further details  
@@ -69,8 +69,10 @@ vcf2mst.pl input_tsv_file out_file type_of_input [options]
 ## Options
 
 * *-out string=(profile|newick)*: If *string=profile*, the output is just the profile file, without calculating distances and MST. Default is *newick*.
-* *-minmax value*: Take mutations with position in the "`value`" interval. Format `value` is `min1:max1,min2:max2`. Example `-minmax 0-100,200-1500,5000-5500`
-* *-minmax-exclude value*: Exlude mutations with position in the "`value`" interval. Format is the same of `-minmax` value
+* *-minmax-include value*: Include mutations with position in the "`value`" interval. Format `value` is `min1-max1,min2-max2`. Example `-minmax-include 0-100,200-1500,5000-5500`
+* *-minmax-exclude value*: The same as `minmax-include`. mutations in the intervals will be excluded. 
+* *-file-minmax-include filename*: Read mutations from filename. Each rows should be a list of intervals with same format of `-minmax-include` value. Comments (with `#`) are allowed in the file.  Example `-file-minmax-include intervals/interval-example.txt`
+* *-file-minmax-exclude filename*: The same as `file-minmax-include`. mutations in the intervals will be excluded. 
 * *-tsv-XXX*: different options for manipulating a tsv file containing at least 2 columns sample_name and list_of_mutation_codes. This options are considered only in case of *type_of_input=tsv*
   * *-tsv-separator char: the character used as separator on tsv/csv file.(default='\t')
   * *-tsv-sample-pos pos: the position in the tsv file of column containing the sample_name (first position is 0).(default=0)
@@ -87,6 +89,11 @@ vcf2mst.pl input_tsv_file out_file type_of_input [options]
 
 `perl vcf2mst.pl examples/nextclade_example.tsv profile.tsv tsv -out profile -tsv-sample-pos 0 -tsv-mutationslist-find pos -tsv-mutationslist-pos 15 -tsv-mutation-pos-regexp '\w(\d+)\w' -debug 1 -minmax 9000-10000 -minmax-exclude 9534-9534`
 
+**Example of file-minmax,debug,tsv options**
+
+`perl vcf2mst.pl examples/nextclade_example.tsv profile.tsv tsv -out profile -tsv-sample-pos 0 -tsv-mutationslist-find pos -tsv-mutationslist-pos 15 -tsv-mutation-pos-regexp '\w(\d+)\w'  -file-minmax-include examples/intervals/interval-example-1.txt -file-minmax-exclude examples/intervals/interval-example-2.txt`
+
+**Examples of file intervals format**: see `examples/intervals/interval-example.txt`
 
 ## GrapeTree command
 
