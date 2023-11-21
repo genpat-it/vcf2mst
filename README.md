@@ -53,9 +53,11 @@ See `examples` folder for the different file formats. See section **Usage** for 
 
 ## Docker based installation
 
-- clone/download vcf2mst on your Linux/Unix based system
-- `docker build -t vcf2mst . `
-
+* Docker build from Dockerfile
+  + clone/download vcf2mst on your Linux/Unix based system
+  + `docker build -t vcf2mst . `
+* Download from dockerhub
+  + `docker pull adipi71/vcf2mst:latest`
 
 # Usage
 
@@ -111,7 +113,7 @@ Change the examples according to your specific installation and docker image
 
 # Examples
 
-## From snippy format vcf files 
+## From snippy format vcf files
 
 ```sh
 # plain
@@ -133,7 +135,7 @@ docker run -u $UID -v /tmp:/tmp --rm  vcf2mst vcf2mst.pl /tmp/folder_with_vcfile
 
 See `examples/vcfiles` for folder format 
 
-## From gisaid metadata.tsv 
+## From gisaid metadata.tsv
 
 ```sh
 # plain
