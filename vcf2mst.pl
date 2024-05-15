@@ -181,11 +181,11 @@ sub _gisaidMetadata2Codes{ my ($file) =@_;
                 # NEXTCLADE: 
                 #   I1413L,      S33del,   ins214EPE        ->  1413,      33,   214
                 #   
-                $pos='-1';
+                $pos='';
                 if( $v=~/^\s*([^_:]*[_:]?)(\w*\d+)/ ) {
                     $pos="$1$2";
                 }
-                if( $pos > 0 ){
+                if( $pos ne '' ){
                     $out .=  "$cmp\t$v\t$pos\n";
                 }else{
                     _debug( "WARNING: row excluded in _gisaidMetadata2Codes '$_' (Not a valid position \$pos=$pos) \n" );
